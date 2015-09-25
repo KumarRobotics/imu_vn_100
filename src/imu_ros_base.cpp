@@ -159,9 +159,11 @@ bool ImuRosBase::initialize() {
   // Connect to the device
   ROS_INFO("Connect to device");
 	error_code = vn100_connect(&imu, port.c_str(), baudrate);
+  errorCodeParser(error_code);
 
   // Idle the device for intialization
   error_code = vn100_pauseAsyncOutputs(&imu, true);
+  errorCodeParser(error_code);
 
   // Get device info
   ROS_INFO("Fetching device info.");
@@ -171,9 +173,13 @@ bool ImuRosBase::initialize() {
   char firmware_version_buffer[30] = {0};
 
   error_code = vn100_getModelNumber(&imu, model_number_buffer, 30);
+  errorCodeParser(error_code);
   error_code = vn100_getHardwareRevision(&imu, &hardware_revision);
+  errorCodeParser(error_code);
   error_code = vn100_getSerialNumber(&imu, serial_number_buffer, 30);
+  errorCodeParser(error_code);
   error_code = vn100_getFirmwareVersion(&imu, firmware_version_buffer, 30);
+  errorCodeParser(error_code);
 
   // Resume the device
   vn100_resumeAsyncOutputs(&imu, true);
@@ -216,16 +222,20 @@ void ImuRosBase::enableIMUStream(bool enabled){
       &imu, BINARY_ASYNC_MODE_SERIAL_1, 1,
       BG1_QTN | BG1_IMU | BG1_MAG_PRES,
       BG2_NONE, BG3_NONE, true);
+    errorCodeParser(error_code);
     // Add a callback function for new data event
     error_code = vn100_registerAsyncDataReceivedListener(
         &imu, &asyncDataListener);
+    errorCodeParser(error_code);
   } else {
     // Mute the stream
     error_code = vn100_setAsynchronousDataOutputType(
           &imu, VNASYNC_OFF, true);
+    errorCodeParser(error_code);
     // Remove the callback function for new data event
     error_code = vn100_unregisterAsyncDataReceivedListener(
         &imu, &asyncDataListener);
+    errorCodeParser(error_code);
   }
 
   // Resume the device
@@ -234,12 +244,15 @@ void ImuRosBase::enableIMUStream(bool enabled){
 }
 
 void ImuRosBase::requestIMUOnce() {
+	VN_ERROR_CODE error_code;
   VnQuaternion att;
   VnVector3 ang, acc, mag;
   ros::Time time = ros::Time::now();
+
   // Note that this function blocks the program until the data is received
-  vn100_getQuaternionMagneticAccelerationAngularRate(
+  error_code  = vn100_getQuaternionMagneticAccelerationAngularRate(
       &imu, &att, &mag, &acc, &ang);
+  errorCodeParser(error_code);
   publishIMUData(time, att, ang, acc, mag);
   return;
 }
