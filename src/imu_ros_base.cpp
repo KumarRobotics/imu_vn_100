@@ -83,9 +83,9 @@ ImuRosBase::ImuRosBase(const NodeHandle& n):
 
 bool ImuRosBase::loadParameters() {
 
-  nh.param<string>("port", port, std::string("//dev/ttyS1"));
+  nh.param<string>("port", port, std::string("/dev/ttyUSB0"));
   nh.param<int>("baudrate", baudrate, 115200);
-  nh.param<string>("frameId", frame_id, std::string("imu"));
+  nh.param<string>("frame_id", frame_id, std::string("imu"));
   nh.param<int>("imu_rate", imu_rate, 100);
   frame_id_ptr = boost::shared_ptr<string>(&frame_id);
 
