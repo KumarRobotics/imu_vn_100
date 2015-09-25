@@ -112,6 +112,7 @@ namespace imu_vn_100 {
 
     bool loadParameters();
     void createPublishers();
+    void errorCodeParser(const VN_ERROR_CODE& error_code);
 
     // Publish IMU msgs
     void publishIMUData(const ros::Time& time,

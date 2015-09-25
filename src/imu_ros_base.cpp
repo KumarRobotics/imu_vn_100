@@ -109,6 +109,44 @@ void ImuRosBase::createPublishers(){
   return;
 }
 
+void ImuRosBase::errorCodeParser(const VN_ERROR_CODE& error_code) {
+  // We only parse a fraction of the error code here.
+  // All of the error codes with VNERR_SENSOR* as prefix
+  // are omitted.
+  // For the detailed definition of VN_ERROR_CODE,
+  // please refer to include/vn_errorCodes.h within
+  // the official driver for the device
+  switch (error_code) {
+    case VNERR_NO_ERROR:
+      break;
+    case VNERR_UNKNOWN_ERROR:
+      ROS_ERROR("Unknown error happened with the device");
+      break;
+    case VNERR_NOT_IMPLEMENTED:
+      ROS_ERROR("The operation is not implemented");
+      break;
+    case VNERR_TIMEOUT:
+      ROS_WARN("Opertation time out");
+      break;
+    case VNERR_INVALID_VALUE:
+      ROS_WARN("Invalid value was provided");
+      break;
+    case VNERR_FILE_NOT_FOUND:
+      ROS_WARN("The file was not found");
+      break;
+    case VNERR_NOT_CONNECTED:
+      ROS_ERROR("The device is not connected");
+      break;
+    case VNERR_PERMISSION_DENIED:
+      ROS_ERROR("Permission is defined");
+      break;
+    default:
+      ROS_ERROR("Sensor type error happened");
+      break;
+  }
+  return;
+}
+
 bool ImuRosBase::initialize() {
   // load parameters
   if(!loadParameters()) return false;
