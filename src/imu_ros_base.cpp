@@ -82,17 +82,17 @@ void asyncDataListener(void* sender,
   imu_diag_ptr->tick(imu.header.stamp);
   updater_ptr->update();
 
-  unsigned int sync_in_count = 10;
-  unsigned int sync_in_time = 10;
-  unsigned int sync_out_count = 10;
-  VN_ERROR_CODE error_code = vndevice_getSynchronizationStatus(
-    static_cast<VnDevice*>(sender),
-    &sync_in_count,
-    &sync_in_time,
-    &sync_out_count);
+  //unsigned int sync_in_count = 10;
+  //unsigned int sync_in_time = 10;
+  //unsigned int sync_out_count = 10;
+  //VN_ERROR_CODE error_code = vndevice_getSynchronizationStatus(
+  //  static_cast<VnDevice*>(sender),
+  //  &sync_in_count,
+  //  &sync_in_time,
+  //  &sync_out_count);
 
-  printf("sync info: %d %d %d %d\n",
-      sync_in_count, sync_in_time, sync_out_count, error_code);
+  //printf("sync info: %d %d %d %d\n",
+  //    sync_in_count, sync_in_time, sync_out_count, error_code);
 
   return;
 }
