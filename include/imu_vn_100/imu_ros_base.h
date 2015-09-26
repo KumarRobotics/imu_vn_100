@@ -85,6 +85,7 @@ namespace imu_vn_100 {
      * @brief disconnect Disconnect the device
      */
     void disconnect() {
+      vn100_reset(&imu);
       vn100_disconnect(&imu);
     }
 

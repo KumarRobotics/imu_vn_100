@@ -54,13 +54,22 @@ void asyncDataListener(void* sender,
   imu.orientation.z = data->quaternion.z;
   imu.orientation.w = data->quaternion.w;
 
-  imu.linear_acceleration.x = data->accelerationUncompensated.c0;
-  imu.linear_acceleration.y = data->accelerationUncompensated.c1;
-  imu.linear_acceleration.z = data->accelerationUncompensated.c2;
+  imu.linear_acceleration.x = data->angularRateUncompensated.c0;
+  imu.linear_acceleration.y = data->angularRateUncompensated.c1;
+  imu.linear_acceleration.z = data->angularRateUncompensated.c2;
+  //imu.linear_acceleration.x = data->acceleration.c0;
+  //imu.linear_acceleration.y = data->acceleration.c1;
+  //imu.linear_acceleration.z = data->acceleration.c2;
+  //imu.linear_acceleration.x = data->linearAccelBody.c0;
+  //imu.linear_acceleration.y = data->linearAccelBody.c1;
+  //imu.linear_acceleration.z = data->linearAccelBody.c2;
 
-  imu.angular_velocity.x = data->angularRateUncompensated.c0;
-  imu.angular_velocity.y = data->angularRateUncompensated.c1;
-  imu.angular_velocity.z = data->angularRateUncompensated.c2;
+  imu.angular_velocity.x = data->accelerationUncompensated.c0;
+  imu.angular_velocity.y = data->accelerationUncompensated.c1;
+  imu.angular_velocity.z = data->accelerationUncompensated.c2;
+  //imu.angular_velocity.x = data->angularRate.c0;
+  //imu.angular_velocity.y = data->angularRate.c1;
+  //imu.angular_velocity.z = data->angularRate.c2;
 
   field.magnetic_field.x = data->magnetic.c0;
   field.magnetic_field.y = data->magnetic.c1;
@@ -72,7 +81,19 @@ void asyncDataListener(void* sender,
   // Update diagnostic info
   imu_diag_ptr->tick(imu.header.stamp);
   updater_ptr->update();
-  return;
+
+  unsigned int sync_in_count = 10;
+  unsigned int sync_in_time = 10;
+  unsigned int sync_out_count = 10;
+  VN_ERROR_CODE error_code = vndevice_getSynchronizationStatus(
+    static_cast<VnDevice*>(sender),
+    &sync_in_count,
+    &sync_in_time,
+    &sync_out_count);
+
+  printf("sync info: %d %d %d %d\n",
+      sync_in_count, sync_in_time, sync_out_count, error_code);
+
   return;
 }
 
@@ -138,7 +159,7 @@ void ImuRosBase::errorCodeParser(const VN_ERROR_CODE& error_code) {
       ROS_ERROR("The device is not connected");
       break;
     case VNERR_PERMISSION_DENIED:
-      ROS_ERROR("Permission is defined");
+      ROS_ERROR("Permission denied");
       break;
     default:
       ROS_ERROR("Sensor type error happened");
@@ -157,11 +178,37 @@ bool ImuRosBase::initialize() {
 	VN_ERROR_CODE error_code;
 
   // Connect to the device
-  ROS_INFO("Connect to device");
-	error_code = vn100_connect(&imu, port.c_str(), baudrate);
+  ROS_INFO("Connecting to device");
+	error_code = vn100_connect(&imu, port.c_str(), 115200);
+  errorCodeParser(error_code);
+  ros::Duration(0.5).sleep();
+  ROS_INFO("Connected to device at %s", port.c_str());
+
+  // Get the old serial baudrate
+  unsigned int  old_baudrate;
+	error_code = vn100_getSerialBaudRate(&imu, &old_baudrate);
+  ROS_INFO("Default serial baudrate: %u", old_baudrate);
+
+  // Set the new serial baudrate
+  ROS_INFO("Set serial baudrate to %d", baudrate);
+	error_code = vn100_setSerialBaudRate(&imu, baudrate, true);
   errorCodeParser(error_code);
 
+  ROS_INFO("Disconnecting the device");
+  vn100_disconnect(&imu);
+  ros::Duration(0.5).sleep();
+
+  ROS_INFO("Reconnecting to device");
+	error_code = vn100_connect(&imu, port.c_str(), baudrate);
+  errorCodeParser(error_code);
+  ros::Duration(0.5).sleep();
+  ROS_INFO("Connected to device at %s", port.c_str());
+
+	error_code = vn100_getSerialBaudRate(&imu, &old_baudrate);
+  ROS_INFO("New serial baudrate: %u", old_baudrate);
+
   // Idle the device for intialization
+  ROS_INFO("Pause the device");
   error_code = vn100_pauseAsyncOutputs(&imu, true);
   errorCodeParser(error_code);
 
@@ -174,15 +221,21 @@ bool ImuRosBase::initialize() {
 
   error_code = vn100_getModelNumber(&imu, model_number_buffer, 30);
   errorCodeParser(error_code);
+  ROS_INFO("Model number: %s", model_number_buffer);
   error_code = vn100_getHardwareRevision(&imu, &hardware_revision);
   errorCodeParser(error_code);
+  ROS_INFO("Hardware revision: %d", hardware_revision);
   error_code = vn100_getSerialNumber(&imu, serial_number_buffer, 30);
   errorCodeParser(error_code);
+  ROS_INFO("Serial number: %s", serial_number_buffer);
   error_code = vn100_getFirmwareVersion(&imu, firmware_version_buffer, 30);
   errorCodeParser(error_code);
+  ROS_INFO("Firmware version: %s", firmware_version_buffer);
 
   // Resume the device
-  vn100_resumeAsyncOutputs(&imu, true);
+  ROS_INFO("Resume the device");
+  error_code = vn100_resumeAsyncOutputs(&imu, true);
+  errorCodeParser(error_code);
 
   // configure diagnostic updater
   if (!nh.hasParam("diagnostic_period")) {
@@ -214,15 +267,39 @@ void ImuRosBase::enableIMUStream(bool enabled){
 	VN_ERROR_CODE error_code;
 
   // Pause the device first
-  vn100_pauseAsyncOutputs(&imu, true);
+  error_code = vn100_pauseAsyncOutputs(&imu, true);
+  errorCodeParser(error_code);
 
   if (enabled) {
     // Set output data type and data rate
+    //error_code = vn100_setBinaryOutput1Configuration(
+    //  &imu, BINARY_ASYNC_MODE_SERIAL_1,
+    //  static_cast<int>(800/imu_rate),
+    //  BG1_QTN | BG1_IMU | BG1_MAG_PRES,
+    //  //BG1_IMU,
+    //  BG3_NONE, BG5_NONE, true);
+    //unsigned int base_freq = 0;
+    //error_code = vn100_getAsynchronousDataOutputFrequency(
+    //  &imu, &base_freq);
+    //ROS_INFO("Base frequency: %d", base_freq);
+    error_code = vn100_setAsynchronousDataOutputType(
+          &imu, VNASYNC_OFF, true);
     error_code = vn100_setBinaryOutput1Configuration(
-      &imu, BINARY_ASYNC_MODE_SERIAL_1, 1,
+      &imu,
+      BINARY_ASYNC_MODE_SERIAL_1,
+      80,
       BG1_QTN | BG1_IMU | BG1_MAG_PRES,
-      BG2_NONE, BG3_NONE, true);
+      BG3_NONE,
+      BG5_NONE,
+      true);
     errorCodeParser(error_code);
+    //error_code = vn100_setAsynchronousDataOutputType(
+    //    &imu, VNASYNC_VNQAR, true);
+    //errorCodeParser(error_code);
+    //error_code  = vn100_setAsynchronousDataOutputFrequency(
+    //    &imu, 100, true);
+    //errorCodeParser(error_code);
+    ROS_INFO("Configure the device");
     // Add a callback function for new data event
     error_code = vn100_registerAsyncDataReceivedListener(
         &imu, &asyncDataListener);
@@ -232,6 +309,7 @@ void ImuRosBase::enableIMUStream(bool enabled){
     error_code = vn100_setAsynchronousDataOutputType(
           &imu, VNASYNC_OFF, true);
     errorCodeParser(error_code);
+    ROS_INFO("Mute the device");
     // Remove the callback function for new data event
     error_code = vn100_unregisterAsyncDataReceivedListener(
         &imu, &asyncDataListener);
@@ -239,7 +317,8 @@ void ImuRosBase::enableIMUStream(bool enabled){
   }
 
   // Resume the device
-  vn100_resumeAsyncOutputs(&imu, true);
+  error_code = vn100_resumeAsyncOutputs(&imu, true);
+  errorCodeParser(error_code);
   return;
 }
 
