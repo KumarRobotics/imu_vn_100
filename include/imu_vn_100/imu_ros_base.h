@@ -105,6 +105,10 @@ namespace imu_vn_100 {
     ros::NodeHandle nh;
     Vn100 imu;
 
+    // Tracking the triggering signal
+    long long int sync_count;
+    ros::Time sync_time;
+
     // Publishers
     ros::Publisher pub_imu;
     ros::Publisher pub_mag;

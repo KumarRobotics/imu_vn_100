@@ -33,6 +33,9 @@ boost::shared_ptr<bool> enable_mag_ptr;
 boost::shared_ptr<bool> enable_pres_ptr;
 boost::shared_ptr<bool> enable_temp_ptr;
 
+boost::shared_ptr<long long int> sync_count_ptr;
+boost::shared_ptr<ros::Time> sync_time_ptr;
+
 boost::shared_ptr<ros::Publisher> pub_imu_ptr;
 boost::shared_ptr<ros::Publisher> pub_mag_ptr;
 boost::shared_ptr<ros::Publisher> pub_pres_ptr;
@@ -98,9 +101,18 @@ void asyncDataListener(void* sender,
     temp_diag_ptr->tick(imu.header.stamp);
   }
 
-  //ROS_INFO("Temperature: %f", data->temperature);
-  //ROS_INFO("Pressure:    %f", data->pressure);
-  ROS_INFO("Sync Count:    %d", data->syncInCnt);
+  if (*sync_count_ptr == -1) {
+    // Initialize the count if never set
+    *sync_count_ptr = data->syncInCnt;
+  } else {
+    // Record the time when the sync counter increases
+    if (*sync_count_ptr != data->syncInCnt) {
+      *sync_time_ptr = imu.header.stamp;
+      *sync_count_ptr = data->syncInCnt;
+    }
+  }
+  ROS_INFO("Sync Count:    %lld", *sync_count_ptr);
+  ROS_INFO("Sync Time :    %f", sync_time_ptr->toSec());
 
   // Update diagnostic info
   updater_ptr->update();
@@ -115,7 +127,9 @@ ImuRosBase::ImuRosBase(const NodeHandle& n):
   frame_id(string("imu")),
   enable_mag(true),
   enable_pres(true),
-  enable_temp(true) {
+  enable_temp(true),
+  sync_count(-1),
+  sync_time(ros::Time::now()) {
   return;
 }
 
@@ -133,6 +147,8 @@ bool ImuRosBase::loadParameters() {
   enable_mag_ptr = boost::shared_ptr<bool>(&enable_mag);
   enable_pres_ptr = boost::shared_ptr<bool>(&enable_pres);
   enable_temp_ptr = boost::shared_ptr<bool>(&enable_temp);
+  sync_count_ptr = boost::shared_ptr<long long int>(&sync_count);
+  sync_time_ptr = boost::shared_ptr<ros::Time>(&sync_time);
 
   if (imu_rate < 0) {
     imu_rate = 100;
@@ -355,7 +371,7 @@ void ImuRosBase::enableIMUStream(bool enabled){
     //ROS_INFO("Base frequency: %d", base_freq);
 
     // Set the ASCII output data type and data rate
-    ROS_INFO("Configure the output data type and frequency");
+    ROS_INFO("Configure the output data type and frequency (id: 6 & 7)");
     error_code = vn100_setAsynchronousDataOutputType(
         &imu, VNASYNC_VNIMU, true);
     errorCodeParser(error_code);
