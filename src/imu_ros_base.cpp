@@ -29,10 +29,20 @@ namespace imu_vn_100 {
 //    the class members are made transparent
 //    here.
 boost::shared_ptr<string> frame_id_ptr;
+boost::shared_ptr<bool> enable_mag_ptr;
+boost::shared_ptr<bool> enable_pres_ptr;
+boost::shared_ptr<bool> enable_temp_ptr;
+
 boost::shared_ptr<ros::Publisher> pub_imu_ptr;
 boost::shared_ptr<ros::Publisher> pub_mag_ptr;
+boost::shared_ptr<ros::Publisher> pub_pres_ptr;
+boost::shared_ptr<ros::Publisher> pub_temp_ptr;
+
 boost::shared_ptr<diagnostic_updater::Updater> updater_ptr;
 boost::shared_ptr<diagnostic_updater::TopicDiagnostic> imu_diag_ptr;
+boost::shared_ptr<diagnostic_updater::TopicDiagnostic> mag_diag_ptr;
+boost::shared_ptr<diagnostic_updater::TopicDiagnostic> pres_diag_ptr;
+boost::shared_ptr<diagnostic_updater::TopicDiagnostic> temp_diag_ptr;
 
 
 // Callback function for new data event
@@ -41,52 +51,71 @@ void asyncDataListener(void* sender,
     VnDeviceCompositeData* data) {
 
   sensor_msgs::Imu imu;
-  sensor_msgs::MagneticField field;
-
   imu.header.stamp = ros::Time::now();
   imu.header.frame_id = *frame_id_ptr;
-  field.header.stamp = imu.header.stamp;
-  field.header.frame_id = *frame_id_ptr;
 
   // TODO: get the covariance for the estimated attitude
-  imu.orientation.x = data->quaternion.x;
-  imu.orientation.y = data->quaternion.y;
-  imu.orientation.z = data->quaternion.z;
-  imu.orientation.w = data->quaternion.w;
+  //imu.orientation.x = data->quaternion.x;
+  //imu.orientation.y = data->quaternion.y;
+  //imu.orientation.z = data->quaternion.z;
+  //imu.orientation.w = data->quaternion.w;
 
-  //imu.linear_acceleration.x = data->angularRateUncompensated.c0;
-  //imu.linear_acceleration.y = data->angularRateUncompensated.c1;
-  //imu.linear_acceleration.z = data->angularRateUncompensated.c2;
   imu.linear_acceleration.x = data->acceleration.c0;
   imu.linear_acceleration.y = data->acceleration.c1;
   imu.linear_acceleration.z = data->acceleration.c2;
-
-  //imu.angular_velocity.x = data->accelerationUncompensated.c0;
-  //imu.angular_velocity.y = data->accelerationUncompensated.c1;
-  //imu.angular_velocity.z = data->accelerationUncompensated.c2;
   imu.angular_velocity.x = data->angularRate.c0;
   imu.angular_velocity.y = data->angularRate.c1;
   imu.angular_velocity.z = data->angularRate.c2;
+  pub_imu_ptr->publish(imu);
+  imu_diag_ptr->tick(imu.header.stamp);
 
-  field.magnetic_field.x = data->magnetic.c0;
-  field.magnetic_field.y = data->magnetic.c1;
-  field.magnetic_field.z = data->magnetic.c2;
+  if (*enable_mag_ptr) {
+    sensor_msgs::MagneticField field;
+    field.header.stamp = imu.header.stamp;
+    field.header.frame_id = *frame_id_ptr;
+    field.magnetic_field.x = data->magnetic.c0;
+    field.magnetic_field.y = data->magnetic.c1;
+    field.magnetic_field.z = data->magnetic.c2;
+    pub_mag_ptr->publish(field);
+    mag_diag_ptr->tick(imu.header.stamp);
+  }
+
+  if (*enable_pres_ptr) {
+    sensor_msgs::FluidPressure pressure;
+    pressure.header.stamp = imu.header.stamp;
+    pressure.header.frame_id = *frame_id_ptr;
+    pressure.fluid_pressure = data->pressure;
+    pub_pres_ptr->publish(pressure);
+    pres_diag_ptr->tick(imu.header.stamp);
+  }
+
+  if (*enable_temp_ptr) {
+    sensor_msgs::Temperature temperature;
+    temperature.header.stamp = imu.header.stamp;
+    temperature.header.frame_id = *frame_id_ptr;
+    temperature.temperature = data->temperature;
+    pub_temp_ptr->publish(temperature);
+    temp_diag_ptr->tick(imu.header.stamp);
+  }
 
   //ROS_INFO("Temperature: %f", data->temperature);
   //ROS_INFO("Pressure:    %f", data->pressure);
-
-  pub_imu_ptr->publish(imu);
-  pub_mag_ptr->publish(field);
+  ROS_INFO("Sync Count:    %d", data->syncInCnt);
 
   // Update diagnostic info
-  imu_diag_ptr->tick(imu.header.stamp);
   updater_ptr->update();
 
   return;
 }
 
 ImuRosBase::ImuRosBase(const NodeHandle& n):
-  nh(n) {
+  nh(n),
+  port(string("/dev/ttyUSB0")),
+  baudrate(921600),
+  frame_id(string("imu")),
+  enable_mag(true),
+  enable_pres(true),
+  enable_temp(true) {
   return;
 }
 
@@ -96,7 +125,14 @@ bool ImuRosBase::loadParameters() {
   nh.param<int>("baudrate", baudrate, 115200);
   nh.param<string>("frame_id", frame_id, std::string("imu"));
   nh.param<int>("imu_rate", imu_rate, 100);
+  nh.param<bool>("enable_magnetic_field", enable_mag, true);
+  nh.param<bool>("enable_pressure", enable_pres, true);
+  nh.param<bool>("enable_temperature", enable_temp, true);
+
   frame_id_ptr = boost::shared_ptr<string>(&frame_id);
+  enable_mag_ptr = boost::shared_ptr<bool>(&enable_mag);
+  enable_pres_ptr = boost::shared_ptr<bool>(&enable_pres);
+  enable_temp_ptr = boost::shared_ptr<bool>(&enable_temp);
 
   if (imu_rate < 0) {
     imu_rate = 100;
@@ -111,10 +147,25 @@ bool ImuRosBase::loadParameters() {
 }
 
 void ImuRosBase::createPublishers(){
+  // IMU data publisher
   pub_imu = nh.advertise<sensor_msgs::Imu>("imu", 1);
-  pub_mag = nh.advertise<sensor_msgs::MagneticField>("magnetic_field", 1);
   pub_imu_ptr = boost::shared_ptr<ros::Publisher>(&pub_imu);
-  pub_mag_ptr = boost::shared_ptr<ros::Publisher>(&pub_mag);
+  // Magnetic field data publisher
+  if (enable_mag) {
+    pub_mag = nh.advertise<sensor_msgs::MagneticField>("magnetic_field", 1);
+    pub_mag_ptr = boost::shared_ptr<ros::Publisher>(&pub_mag);
+  }
+  // Pressure data publisher
+  if (enable_pres) {
+    pub_pres = nh.advertise<sensor_msgs::FluidPressure>("pressure", 1);
+    pub_pres_ptr = boost::shared_ptr<ros::Publisher>(&pub_pres);
+  }
+  // Temperature data publisher
+  if (enable_temp) {
+    pub_temp = nh.advertise<sensor_msgs::Temperature>("temperature", 1);
+    pub_temp_ptr = boost::shared_ptr<ros::Publisher>(&pub_temp);
+  }
+
   return;
 }
 
@@ -182,16 +233,19 @@ bool ImuRosBase::initialize() {
 	error_code = vn100_setSerialBaudRate(&imu, baudrate, true);
   errorCodeParser(error_code);
 
+  // Disconnect the device
   ROS_INFO("Disconnecting the device");
   vn100_disconnect(&imu);
   ros::Duration(0.5).sleep();
 
+  // Reconnect to the device
   ROS_INFO("Reconnecting to device");
 	error_code = vn100_connect(&imu, port.c_str(), baudrate);
   errorCodeParser(error_code);
   ros::Duration(0.5).sleep();
   ROS_INFO("Connected to device at %s", port.c_str());
 
+  // Check the new baudrate
 	error_code = vn100_getSerialBaudRate(&imu, &old_baudrate);
   ROS_INFO("New serial baudrate: %u", old_baudrate);
 
@@ -227,13 +281,13 @@ bool ImuRosBase::initialize() {
 	  0, SYNCOUTMODE_IMU_START, SYNCOUTPOLARITY_POSITIVE,
 	  24, 500000, true);
   errorCodeParser(error_code);
+
   // Configure the communication protocal control register
   ROS_INFO("Set Communication Protocal Control Register (id:30).");
   error_code = vn100_setCommunicationProtocolControl(
 	  &imu, SERIALCOUNT_SYNCOUT_COUNT, SERIALSTATUS_OFF,
 	  SPICOUNT_NONE, SPISTATUS_OFF, SERIALCHECKSUM_8BIT,
 	  SPICHECKSUM_8BIT, ERRORMODE_SEND, true);
-
 
   // Resume the device
   ROS_INFO("Resume the device");
@@ -258,9 +312,21 @@ bool ImuRosBase::initialize() {
       0, 0.5/imu_rate_float);
   imu_diag.reset(new diagnostic_updater::TopicDiagnostic("imu",
         *updater, freqParam, timeParam));
+  if (enable_mag)
+    mag_diag.reset(new diagnostic_updater::TopicDiagnostic("magnetic_field",
+          *updater, freqParam, timeParam));
+  if (enable_pres)
+    pres_diag.reset(new diagnostic_updater::TopicDiagnostic("pressure",
+          *updater, freqParam, timeParam));
+  if (enable_temp)
+    temp_diag.reset(new diagnostic_updater::TopicDiagnostic("temperature",
+          *updater, freqParam, timeParam));
 
   updater_ptr = updater;
   imu_diag_ptr = imu_diag;
+  mag_diag_ptr = mag_diag;
+  pres_diag_ptr = pres_diag;
+  temp_diag_ptr = temp_diag;
 
   return true;
 }

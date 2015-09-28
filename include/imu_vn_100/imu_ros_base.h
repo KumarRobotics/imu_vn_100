@@ -26,6 +26,8 @@
 #include <diagnostic_updater/publisher.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/MagneticField.h>
+#include <sensor_msgs/FluidPressure.h>
+#include <sensor_msgs/Temperature.h>
 
 #include <imu_vn_100/vncpplib/include/vn100.h>
 
@@ -96,16 +98,25 @@ namespace imu_vn_100 {
     int imu_rate;
     std::string frame_id;
 
+    bool enable_mag;
+    bool enable_pres;
+    bool enable_temp;
+
     ros::NodeHandle nh;
     Vn100 imu;
 
     // Publishers
     ros::Publisher pub_imu;
     ros::Publisher pub_mag;
+    ros::Publisher pub_pres;
+    ros::Publisher pub_temp;
 
     // diagnostic_updater resources
     boost::shared_ptr<diagnostic_updater::Updater> updater;
     boost::shared_ptr<diagnostic_updater::TopicDiagnostic> imu_diag;
+    boost::shared_ptr<diagnostic_updater::TopicDiagnostic> mag_diag;
+    boost::shared_ptr<diagnostic_updater::TopicDiagnostic> pres_diag;
+    boost::shared_ptr<diagnostic_updater::TopicDiagnostic> temp_diag;
 
     // Disable copy constructor and assign operator
     ImuRosBase(const ImuRosBase&);
