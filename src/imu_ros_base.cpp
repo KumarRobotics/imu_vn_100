@@ -72,8 +72,8 @@ void asyncDataListener(void* sender,
   field.magnetic_field.y = data->magnetic.c1;
   field.magnetic_field.z = data->magnetic.c2;
 
-  ROS_INFO("Temperature: %f", data->temperature);
-  ROS_INFO("Pressure:    %f", data->pressure);
+  //ROS_INFO("Temperature: %f", data->temperature);
+  //ROS_INFO("Pressure:    %f", data->pressure);
 
   pub_imu_ptr->publish(imu);
   pub_mag_ptr->publish(field);
@@ -220,6 +220,21 @@ bool ImuRosBase::initialize() {
   errorCodeParser(error_code);
   ROS_INFO("Firmware version: %s", firmware_version_buffer);
 
+  // Configure the synchronization control register
+  ROS_INFO("Set Synchronization Control Register (id:32).");
+  error_code = vn100_setSynchronizationControl(
+	  &imu, SYNCINMODE_COUNT, SYNCINEDGE_RISING,
+	  0, SYNCOUTMODE_IMU_START, SYNCOUTPOLARITY_POSITIVE,
+	  24, 500000, true);
+  errorCodeParser(error_code);
+  // Configure the communication protocal control register
+  ROS_INFO("Set Communication Protocal Control Register (id:30).");
+  error_code = vn100_setCommunicationProtocolControl(
+	  &imu, SERIALCOUNT_SYNCOUT_COUNT, SERIALSTATUS_OFF,
+	  SPICOUNT_NONE, SPISTATUS_OFF, SERIALCHECKSUM_8BIT,
+	  SPICHECKSUM_8BIT, ERRORMODE_SEND, true);
+
+
   // Resume the device
   ROS_INFO("Resume the device");
   error_code = vn100_resumeAsyncOutputs(&imu, true);
@@ -274,23 +289,24 @@ void ImuRosBase::enableIMUStream(bool enabled){
     //ROS_INFO("Base frequency: %d", base_freq);
 
     // Set the ASCII output data type and data rate
+    ROS_INFO("Configure the output data type and frequency");
     error_code = vn100_setAsynchronousDataOutputType(
         &imu, VNASYNC_VNIMU, true);
     errorCodeParser(error_code);
     error_code  = vn100_setAsynchronousDataOutputFrequency(
         &imu, imu_rate, true);
     errorCodeParser(error_code);
-    ROS_INFO("Configure the device");
+
     // Add a callback function for new data event
     error_code = vn100_registerAsyncDataReceivedListener(
         &imu, &asyncDataListener);
     errorCodeParser(error_code);
   } else {
     // Mute the stream
+    ROS_INFO("Mute the device");
     error_code = vn100_setAsynchronousDataOutputType(
           &imu, VNASYNC_OFF, true);
     errorCodeParser(error_code);
-    ROS_INFO("Mute the device");
     // Remove the callback function for new data event
     error_code = vn100_unregisterAsyncDataReceivedListener(
         &imu, &asyncDataListener);

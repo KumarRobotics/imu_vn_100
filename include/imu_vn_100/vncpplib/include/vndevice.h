@@ -220,6 +220,51 @@ extern "C" {
 #define BG6_VEL_U				0x0400	/**< INS velocity uncertainty. */
 /** @} */
 
+/**
+ * @defgroup Synchronization control register
+ *
+ * @{
+ */
+#define SYNCINMODE_COUNT            3
+#define SYNCINMODE_IMU              4
+#define SYNCINMODE_ASYNC            5
+#define SYNCINEDGE_RISING           0
+#define SYNCINEDGE_FALLING          1
+#define SYNCOUTMODE_NONE            0
+#define SYNCOUTMODE_IMU_START       1
+#define SYNCOUTMODE_IMU_READY       2
+#define SYNCOUTMODE_AHRS            3
+#define SYNCOUTPOLARITY_NEGATIVE 0
+#define SYNCOUTPOLARITY_POSITIVE 1
+/** @} */
+
+/**
+ * @defgroup Communication protocal control register
+ *
+ * @{
+ */
+#define SERIALCOUNT_NONE            0
+#define SERIALCOUNT_SYNCIN_COUNT    1
+#define SERIALCOUNT_SYNCIN_TIME     2
+#define SERIALCOUNT_SYNCOUT_COUNT   3
+#define SERIALSTATUS_OFF            0
+#define SERIALSTATUS_VPE            1
+#define SPICOUNT_NONE               0
+#define SPICOUNT_SYNCIN_COUNT       1
+#define SPICOUNT_SYNCIN_TIME        2
+#define SPICOUNT_SYNCOUT_COUNT      3
+#define SPISTATUS_OFF               0
+#define SPISTATUS_VPE               1
+#define SERIALCHECKSUM_8BIT         1
+#define SERIALCHECKSUM_16BIT        3
+#define SPICHECKSUM_OFF             0
+#define SPICHECKSUM_8BIT            1
+#define SPICHECKSUM_16BIT           3
+#define ERRORMODE_IGNORE            0
+#define ERRORMODE_SEND              1
+#define ERRORMODE_ADOR              2
+/** @} */
+
 #define VN_RESPONSE_MATCH_SIZE			10		/**< Size to match for the response. */
 #define VN_MAX_RESPONSE_SIZE			256		/**< Maximum response size from sensor. */
 #define VN_MAX_COMMAND_SIZE				256		/**< Maximum size of command to send to the sensor. */
