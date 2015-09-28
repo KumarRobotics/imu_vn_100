@@ -4,19 +4,19 @@
  *
  * \section LICENSE
  * The MIT License (MIT)
- * 
+ *
  * Copyright (c) 2014 VectorNav Technologies, LLC
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -204,7 +204,7 @@ int vndevice_computeLengthOfBinaryGroupPayload(
 
 	for (i = 0; i < sizeof (uint16_t) * 8; i++) {
 
-		if ((groupField >> i) & 1) {	
+		if ((groupField >> i) & 1) {
 			runningLength += BinaryPacketGroupLengths[groupIndex][i];
 		}
 	}
@@ -1108,7 +1108,7 @@ uint16_t vndevice_processGroup5Data(
 	}
 
 	if (groupField & 0x0002) {
-		 
+
 		data->ypr.yaw = *((float*) groupDataPtr);
 
 		groupDataPtr += sizeof (float);
@@ -1531,7 +1531,7 @@ uint16_t vndevice_checksum_computeCrc16(
 {
 	uint32_t i;
 	uint16_t crc = 0;
-	
+
 	for (i = 0; i < length; i++) {
 
 		crc = (uint16_t) ((crc >> 8) | (crc << 8));
@@ -1541,7 +1541,7 @@ uint16_t vndevice_checksum_computeCrc16(
 		crc ^= (uint16_t) ((crc << 8) << 4);
 		crc ^= (uint16_t) (((crc & 0xFF) << 4) << 1);
 	}
-	
+
 	return crc;
 }
 
@@ -1586,7 +1586,7 @@ VN_ERROR_CODE vndevice_transaction(
 	/* We add one to the cmdToSend pointer to skip over the '$' at the beginning. */
 	/* We add one to the packetTail pointer so the "FF" string is overwritten with the checksum. */
 	vndevice_checksum_computeAndReturnAsHex(cmdToSend + 1, packetTail + 1);
-	
+
 	vndevice_enableResponseChecking_threadSafe(vndevice, responseMatch);
 
 	vndevice_writeData_threadSafe(vndevice, cmdToSend, strlen(cmdToSend));
@@ -1716,7 +1716,7 @@ void* vndevice_communicationHandler(
 					asciiBufferIndex++;
 				}
 			}
-				
+
 			/* Make sure we are not overrunning our BINARY buffer. */
 			if (binaryBufferIndex == BINARY_RECEIVE_BUFFER_SIZE) {
 
@@ -1838,7 +1838,7 @@ int vndevice_computeLengthOfExpectedBinaryPayload(
 	char* ptrToCurrentGroupField = ptrToPacketStart + 2;
 
 	if (groups & 0x01) {
-		
+
 		/* We have group 1 present. */
 		runningPayloadLength += vndevice_computeLengthOfBinaryGroupPayload(0, *((uint16_t*) ptrToCurrentGroupField));
 
@@ -1897,7 +1897,7 @@ void vndevice_processReceivedPacket(
 
 	/* See if we have an error from the sensor. */
 	if (strncmp("VNERR", buffer + 1, strlen("VNERR")) == 0) {
-			
+
 		char* result;
 
 		/* Error encountered when trying to get response from the sensor. */
@@ -1912,7 +1912,7 @@ void vndevice_processReceivedPacket(
 			vndevice_disableResponseChecking_threadSafe(vndevice);
 			vncp_event_signal(vndevice->waitForCommandResponseEvent);
 		}
-	
+
 		if (vndevice->errorCodeListener != NULL)
 			vndevice->errorCodeListener(vndevice->deviceMask, vndevice->sensorError);
 	}
@@ -2790,7 +2790,7 @@ void vndevice_processAsyncData(
 		result = strtok(0, delims);
 		if (result == NULL)
 			return;
-		data.temperature = atof(result);
+		data.pressure = atof(result);
 	}
 	else if (strncmp(buffer, "$VNGPS", 5) == 0) {
 
@@ -3026,7 +3026,7 @@ void vndevice_processAsyncData(
 	vncp_criticalSection_enter(&vndevice->critSecForLatestAsyncDataAccess);
 	memcpy(&vndevice->lastestAsyncData, &data, sizeof(VnDeviceCompositeData));
 	vncp_criticalSection_leave(&vndevice->critSecForLatestAsyncDataAccess);
-	
+
 	if (vndevice->asyncDataListener != NULL)
 		vndevice->asyncDataListener(vndevice->deviceMask, &vndevice->lastestAsyncData);
 }
@@ -3051,7 +3051,7 @@ bool vndevice_shouldCheckForResponse_threadSafe(
 	vncp_criticalSection_enter(&vndevice->critSecForResponseMatchAccess);
 
 	shouldCheckResponse = vndevice->checkForResponse;
-	
+
 	if (shouldCheckResponse)
 		strcpy(responseMatchBuffer, vndevice->cmdResponseMatchBuffer);
 
@@ -3315,7 +3315,7 @@ VN_ERROR_CODE vndevice_getSynchronizationControl(
 	if (result == NULL)
 		return VNERR_INVALID_VALUE;
 	*syncInSkipFactor = (unsigned short) atoi(result);
-	result = strtok(0, delims);	/* Placeholder for the reserved0 result. */	
+	result = strtok(0, delims);	/* Placeholder for the reserved0 result. */
 	if (result == NULL)
 		return VNERR_INVALID_VALUE;
 	result = strtok(0, delims);
@@ -4720,7 +4720,7 @@ VN_ERROR_CODE vndevice_getYawPitchRoll(
 	if (result == NULL)
 		return VNERR_INVALID_VALUE;
 	attitude->roll = atof(result);
-	
+
 	return VNERR_NO_ERROR;
 }
 
