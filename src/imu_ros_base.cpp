@@ -54,26 +54,26 @@ void asyncDataListener(void* sender,
   imu.orientation.z = data->quaternion.z;
   imu.orientation.w = data->quaternion.w;
 
-  imu.linear_acceleration.x = data->angularRateUncompensated.c0;
-  imu.linear_acceleration.y = data->angularRateUncompensated.c1;
-  imu.linear_acceleration.z = data->angularRateUncompensated.c2;
-  //imu.linear_acceleration.x = data->acceleration.c0;
-  //imu.linear_acceleration.y = data->acceleration.c1;
-  //imu.linear_acceleration.z = data->acceleration.c2;
-  //imu.linear_acceleration.x = data->linearAccelBody.c0;
-  //imu.linear_acceleration.y = data->linearAccelBody.c1;
-  //imu.linear_acceleration.z = data->linearAccelBody.c2;
+  //imu.linear_acceleration.x = data->angularRateUncompensated.c0;
+  //imu.linear_acceleration.y = data->angularRateUncompensated.c1;
+  //imu.linear_acceleration.z = data->angularRateUncompensated.c2;
+  imu.linear_acceleration.x = data->acceleration.c0;
+  imu.linear_acceleration.y = data->acceleration.c1;
+  imu.linear_acceleration.z = data->acceleration.c2;
 
-  imu.angular_velocity.x = data->accelerationUncompensated.c0;
-  imu.angular_velocity.y = data->accelerationUncompensated.c1;
-  imu.angular_velocity.z = data->accelerationUncompensated.c2;
-  //imu.angular_velocity.x = data->angularRate.c0;
-  //imu.angular_velocity.y = data->angularRate.c1;
-  //imu.angular_velocity.z = data->angularRate.c2;
+  //imu.angular_velocity.x = data->accelerationUncompensated.c0;
+  //imu.angular_velocity.y = data->accelerationUncompensated.c1;
+  //imu.angular_velocity.z = data->accelerationUncompensated.c2;
+  imu.angular_velocity.x = data->angularRate.c0;
+  imu.angular_velocity.y = data->angularRate.c1;
+  imu.angular_velocity.z = data->angularRate.c2;
 
   field.magnetic_field.x = data->magnetic.c0;
   field.magnetic_field.y = data->magnetic.c1;
   field.magnetic_field.z = data->magnetic.c2;
+
+  ROS_INFO("Temperature: %f", data->temperature);
+  ROS_INFO("Pressure:    %f", data->pressure);
 
   pub_imu_ptr->publish(imu);
   pub_mag_ptr->publish(field);
@@ -81,18 +81,6 @@ void asyncDataListener(void* sender,
   // Update diagnostic info
   imu_diag_ptr->tick(imu.header.stamp);
   updater_ptr->update();
-
-  //unsigned int sync_in_count = 10;
-  //unsigned int sync_in_time = 10;
-  //unsigned int sync_out_count = 10;
-  //VN_ERROR_CODE error_code = vndevice_getSynchronizationStatus(
-  //  static_cast<VnDevice*>(sender),
-  //  &sync_in_count,
-  //  &sync_in_time,
-  //  &sync_out_count);
-
-  //printf("sync info: %d %d %d %d\n",
-  //    sync_in_count, sync_in_time, sync_out_count, error_code);
 
   return;
 }
@@ -271,7 +259,9 @@ void ImuRosBase::enableIMUStream(bool enabled){
   errorCodeParser(error_code);
 
   if (enabled) {
-    // Set output data type and data rate
+    // Set the binary output data type and data rate
+    //error_code = vn100_setAsynchronousDataOutputType(
+    //      &imu, VNASYNC_OFF, true);
     //error_code = vn100_setBinaryOutput1Configuration(
     //  &imu, BINARY_ASYNC_MODE_SERIAL_1,
     //  static_cast<int>(800/imu_rate),
@@ -282,23 +272,14 @@ void ImuRosBase::enableIMUStream(bool enabled){
     //error_code = vn100_getAsynchronousDataOutputFrequency(
     //  &imu, &base_freq);
     //ROS_INFO("Base frequency: %d", base_freq);
+
+    // Set the ASCII output data type and data rate
     error_code = vn100_setAsynchronousDataOutputType(
-          &imu, VNASYNC_OFF, true);
-    error_code = vn100_setBinaryOutput1Configuration(
-      &imu,
-      BINARY_ASYNC_MODE_SERIAL_1,
-      80,
-      BG1_QTN | BG1_IMU | BG1_MAG_PRES,
-      BG3_NONE,
-      BG5_NONE,
-      true);
+        &imu, VNASYNC_VNIMU, true);
     errorCodeParser(error_code);
-    //error_code = vn100_setAsynchronousDataOutputType(
-    //    &imu, VNASYNC_VNQAR, true);
-    //errorCodeParser(error_code);
-    //error_code  = vn100_setAsynchronousDataOutputFrequency(
-    //    &imu, 100, true);
-    //errorCodeParser(error_code);
+    error_code  = vn100_setAsynchronousDataOutputFrequency(
+        &imu, imu_rate, true);
+    errorCodeParser(error_code);
     ROS_INFO("Configure the device");
     // Add a callback function for new data event
     error_code = vn100_registerAsyncDataReceivedListener(
