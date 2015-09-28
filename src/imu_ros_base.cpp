@@ -386,54 +386,10 @@ void ImuRosBase::enableIMUStream(bool enabled){
 }
 
 void ImuRosBase::requestIMUOnce() {
-	VN_ERROR_CODE error_code;
-  VnQuaternion att;
-  VnVector3 ang, acc, mag;
-  ros::Time time = ros::Time::now();
-
-  // Note that this function blocks the program until the data is received
-  error_code  = vn100_getQuaternionMagneticAccelerationAngularRate(
-      &imu, &att, &mag, &acc, &ang);
-  errorCodeParser(error_code);
-  publishIMUData(time, att, ang, acc, mag);
   return;
 }
 
-void ImuRosBase::publishIMUData(const ros::Time& time,
-    const VnQuaternion& att, const VnVector3& ang,
-    const VnVector3& acc, const VnVector3& mag){
-  sensor_msgs::Imu imu;
-  sensor_msgs::MagneticField field;
-
-  imu.header.stamp = time;
-  imu.header.frame_id = frame_id;
-  field.header.stamp = time;
-  field.header.frame_id = frame_id;
-
-  // TODO: get the covariance for the estimated attitude
-  imu.orientation.x = att.x;
-  imu.orientation.y = att.y;
-  imu.orientation.z = att.z;
-  imu.orientation.w = att.w;
-
-  imu.linear_acceleration.x = acc.c0;
-  imu.linear_acceleration.y = acc.c1;
-  imu.linear_acceleration.z = acc.c2;
-
-  imu.angular_velocity.x = ang.c0;
-  imu.angular_velocity.y = ang.c1;
-  imu.angular_velocity.z = ang.c2;
-
-  field.magnetic_field.x = mag.c0;
-  field.magnetic_field.y = mag.c1;
-  field.magnetic_field.z = mag.c2;
-
-  pub_imu.publish(imu);
-  pub_mag.publish(field);
-
-  // Update diagnostic info
-  imu_diag->tick(imu.header.stamp);
-  updater->update();
+void ImuRosBase::publishIMUData() {
   return;
 }
 

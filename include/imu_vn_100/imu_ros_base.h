@@ -127,9 +127,7 @@ namespace imu_vn_100 {
     void errorCodeParser(const VN_ERROR_CODE& error_code);
 
     // Publish IMU msgs
-    void publishIMUData(const ros::Time& time,
-        const VnQuaternion& att, const VnVector3& ang,
-        const VnVector3& acc, const VnVector3& mag);
+    void publishIMUData();
     // Callback function for adding meta info in the diag msgs
     void updateDiagnosticInfo(
         diagnostic_updater::DiagnosticStatusWrapper& stat);
