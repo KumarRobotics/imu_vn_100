@@ -1949,6 +1949,7 @@ void vndevice_processAsyncData(
 	VnDeviceCompositeData data;
 	char delims[] = ",";
 	char* result;
+  char sync_count[11] = {0};
 
 	memset(&data, 0, sizeof(VnDeviceCompositeData));
 
@@ -1967,6 +1968,11 @@ void vndevice_processAsyncData(
 		if (result == NULL)
 			return;
 		data.ypr.roll = atof(result);
+		result = strtok(0, delims);
+		if (result == NULL)
+			return;
+    memcpy(sync_count, result+1, 10);
+    data.syncInCnt = atoi(sync_count);
 	}
 	else if (strncmp(buffer, "$VNQTN", 5) == 0) {
 
@@ -1987,6 +1993,11 @@ void vndevice_processAsyncData(
 		if (result == NULL)
 			return;
 		data.quaternion.w = atof(result);
+		result = strtok(0, delims);
+		if (result == NULL)
+			return;
+    memcpy(sync_count, result+1, 10);
+    data.syncInCnt = atoi(sync_count);
 	}
 	else if (strncmp(buffer, "$VNQTM", 5) == 0) {
 
@@ -2019,6 +2030,11 @@ void vndevice_processAsyncData(
 		if (result == NULL)
 			return;
 		data.magnetic.c2 = atof(result);
+		result = strtok(0, delims);
+		if (result == NULL)
+			return;
+    memcpy(sync_count, result+1, 10);
+    data.syncInCnt = atoi(sync_count);
 	}
 	else if (strncmp(buffer, "$VNQTA", 5) == 0) {
 
@@ -2051,6 +2067,11 @@ void vndevice_processAsyncData(
 		if (result == NULL)
 			return;
 		data.acceleration.c2 = atof(result);
+		result = strtok(0, delims);
+		if (result == NULL)
+			return;
+    memcpy(sync_count, result+1, 10);
+    data.syncInCnt = atoi(sync_count);
 	}
 	else if (strncmp(buffer, "$VNQTR", 5) == 0) {
 
@@ -2083,6 +2104,11 @@ void vndevice_processAsyncData(
 		if (result == NULL)
 			return;
 		data.angularRate.c2 = atof(result);
+		result = strtok(0, delims);
+		if (result == NULL)
+			return;
+    memcpy(sync_count, result+1, 10);
+    data.syncInCnt = atoi(sync_count);
 	}
 	else if (strncmp(buffer, "$VNQMA", 5) == 0) {
 
@@ -2127,6 +2153,11 @@ void vndevice_processAsyncData(
 		if (result == NULL)
 			return;
 		data.acceleration.c2 = atof(result);
+		result = strtok(0, delims);
+		if (result == NULL)
+			return;
+    memcpy(sync_count, result+1, 10);
+    data.syncInCnt = atoi(sync_count);
 	}
 	else if (strncmp(buffer, "$VNQAR", 5) == 0) {
 
@@ -2171,6 +2202,11 @@ void vndevice_processAsyncData(
 		if (result == NULL)
 			return;
 		data.angularRate.c2 = atof(result);
+		result = strtok(0, delims);
+		if (result == NULL)
+			return;
+    memcpy(sync_count, result+1, 10);
+    data.syncInCnt = atoi(sync_count);
 	}
 	else if (strncmp(buffer, "$VNQMR", 5) == 0) {
 
@@ -2227,6 +2263,11 @@ void vndevice_processAsyncData(
 		if (result == NULL)
 			return;
 		data.angularRate.c2 = atof(result);
+		result = strtok(0, delims);
+		if (result == NULL)
+			return;
+    memcpy(sync_count, result+1, 10);
+    data.syncInCnt = atoi(sync_count);
 	}
 	else if (strncmp(buffer, "$VNDCM", 5) == 0) {
 
@@ -2267,6 +2308,11 @@ void vndevice_processAsyncData(
 		if (result == NULL)
 			return;
 		data.dcm.c22 = atof(result);
+		result = strtok(0, delims);
+		if (result == NULL)
+			return;
+    memcpy(sync_count, result+1, 10);
+    data.syncInCnt = atoi(sync_count);
 	}
 	else if (strncmp(buffer, "$VNMAG", 5) == 0) {
 
@@ -2283,6 +2329,11 @@ void vndevice_processAsyncData(
 		if (result == NULL)
 			return;
 		data.magnetic.c2 = atof(result);
+		result = strtok(0, delims);
+		if (result == NULL)
+			return;
+    memcpy(sync_count, result+1, 10);
+    data.syncInCnt = atoi(sync_count);
 	}
 	else if (strncmp(buffer, "$VNACC", 5) == 0) {
 
@@ -2299,6 +2350,11 @@ void vndevice_processAsyncData(
 		if (result == NULL)
 			return;
 		data.acceleration.c2 = atof(result);
+		result = strtok(0, delims);
+		if (result == NULL)
+			return;
+    memcpy(sync_count, result+1, 10);
+    data.syncInCnt = atoi(sync_count);
 	}
 	else if (strncmp(buffer, "$VNGYR", 5) == 0) {
 
@@ -2315,6 +2371,11 @@ void vndevice_processAsyncData(
 		if (result == NULL)
 			return;
 		data.angularRate.c2 = atof(result);
+		result = strtok(0, delims);
+		if (result == NULL)
+			return;
+    memcpy(sync_count, result+1, 10);
+    data.syncInCnt = atoi(sync_count);
 	}
 	else if (strncmp(buffer, "$VNMAR", 5) == 0) {
 
@@ -2355,6 +2416,11 @@ void vndevice_processAsyncData(
 		if (result == NULL)
 			return;
 		data.angularRate.c2 = atof(result);
+		result = strtok(0, delims);
+		if (result == NULL)
+			return;
+    memcpy(sync_count, result+1, 10);
+    data.syncInCnt = atoi(sync_count);
 	}
 	else if (strncmp(buffer, "$VNYMR", 5) == 0) {
 
@@ -2407,6 +2473,11 @@ void vndevice_processAsyncData(
 		if (result == NULL)
 			return;
 		data.angularRate.c2 = atof(result);
+		result = strtok(0, delims);
+		if (result == NULL)
+			return;
+    memcpy(sync_count, result+1, 10);
+    data.syncInCnt = atoi(sync_count);
 	}
 	else if (strncmp(buffer, "$VNYCM", 5) == 0) {
 
@@ -2463,6 +2534,11 @@ void vndevice_processAsyncData(
 		if (result == NULL)
 			return;
 		data.temperature = atof(result);
+		result = strtok(0, delims);
+		if (result == NULL)
+			return;
+    memcpy(sync_count, result+1, 10);
+    data.syncInCnt = atoi(sync_count);
 	}
 	else if (strncmp(buffer, "$VNYBA", 5) == 0) {
 
@@ -2503,6 +2579,11 @@ void vndevice_processAsyncData(
 		if (result == NULL)
 			return;
 		data.angularRate.c2 = atof(result);
+		result = strtok(0, delims);
+		if (result == NULL)
+			return;
+    memcpy(sync_count, result+1, 10);
+    data.syncInCnt = atoi(sync_count);
 	}
 	else if (strncmp(buffer, "$VNYIA", 5) == 0) {
 
@@ -2543,6 +2624,11 @@ void vndevice_processAsyncData(
 		if (result == NULL)
 			return;
 		data.angularRate.c2 = atof(result);
+		result = strtok(0, delims);
+		if (result == NULL)
+			return;
+    memcpy(sync_count, result+1, 10);
+    data.syncInCnt = atoi(sync_count);
 	}
 	else if (strncmp(buffer, "$VNICM", 5) == 0) {
 
@@ -2595,6 +2681,11 @@ void vndevice_processAsyncData(
 		if (result == NULL)
 			return;
 		data.angularRate.c2 = atof(result);
+		result = strtok(0, delims);
+		if (result == NULL)
+			return;
+    memcpy(sync_count, result+1, 10);
+    data.syncInCnt = atoi(sync_count);
 	}
 	else if (strncmp(buffer, "$VNRAW", 5) == 0) {
 
@@ -2639,6 +2730,11 @@ void vndevice_processAsyncData(
 		if (result == NULL)
 			return;
 		data.temperatureVoltage = atof(result);
+		result = strtok(0, delims);
+		if (result == NULL)
+			return;
+    memcpy(sync_count, result+1, 10);
+    data.syncInCnt = atoi(sync_count);
 	}
 	else if (strncmp(buffer, "$VNCMV", 5) == 0) {
 
@@ -2683,6 +2779,11 @@ void vndevice_processAsyncData(
 		if (result == NULL)
 			return;
 		data.temperature = atof(result);
+		result = strtok(0, delims);
+		if (result == NULL)
+			return;
+    memcpy(sync_count, result+1, 10);
+    data.syncInCnt = atoi(sync_count);
 	}
 	else if (strncmp(buffer, "$VNSTV", 5) == 0) {
 
@@ -2715,6 +2816,11 @@ void vndevice_processAsyncData(
 		if (result == NULL)
 			return;
 		data.angularRateBias.c2 = atof(result);
+		result = strtok(0, delims);
+		if (result == NULL)
+			return;
+    memcpy(sync_count, result+1, 10);
+    data.syncInCnt = atoi(sync_count);
 	}
 	else if (strncmp(buffer, "$VNCOV", 5) == 0) {
 
@@ -2743,6 +2849,11 @@ void vndevice_processAsyncData(
 		if (result == NULL)
 			return;
 		data.angularRateBiasVariance.c2 = atof(result);
+		result = strtok(0, delims);
+		if (result == NULL)
+			return;
+    memcpy(sync_count, result+1, 10);
+    data.syncInCnt = atoi(sync_count);
 	}
 	else if (strncmp(buffer, "$VNIMU", 5) == 0) {
 
@@ -2791,6 +2902,11 @@ void vndevice_processAsyncData(
 		if (result == NULL)
 			return;
 		data.pressure = atof(result);
+		result = strtok(0, delims);
+		if (result == NULL)
+			return;
+    memcpy(sync_count, result+1, 10);
+    data.syncInCnt = atoi(sync_count);
 	}
 	else if (strncmp(buffer, "$VNGPS", 5) == 0) {
 
@@ -2855,6 +2971,11 @@ void vndevice_processAsyncData(
 		if (result == NULL)
 			return;
 		data.timeAccSec = (float) atof(result);
+		result = strtok(0, delims);
+		if (result == NULL)
+			return;
+    memcpy(sync_count, result+1, 10);
+    data.syncInCnt = atoi(sync_count);
 	}
 	else if (strncmp(buffer, "$VNGPE", 5) == 0) {
 
@@ -2919,6 +3040,11 @@ void vndevice_processAsyncData(
 		if (result == NULL)
 			return;
 		data.timeAccSec = (float) atof(result);
+		result = strtok(0, delims);
+		if (result == NULL)
+			return;
+    memcpy(sync_count, result+1, 10);
+    data.syncInCnt = atoi(sync_count);
 	}
 	else if (strncmp(buffer, "$VNINS", 5) == 0) {
 
@@ -2983,6 +3109,11 @@ void vndevice_processAsyncData(
 		if (result == NULL)
 			return;
 		data.velU = (float) atof(result);
+		result = strtok(0, delims);
+		if (result == NULL)
+			return;
+    memcpy(sync_count, result+1, 10);
+    data.syncInCnt = atoi(sync_count);
 	}
 	else if (strncmp(buffer, "$VNDTV", 5) == 0) {
 
@@ -3015,6 +3146,11 @@ void vndevice_processAsyncData(
 		if (result == NULL)
 			return;
 		data.deltaVelocity.c2 = atof(result);
+		result = strtok(0, delims);
+		if (result == NULL)
+			return;
+    memcpy(sync_count, result+1, 10);
+    data.syncInCnt = atoi(sync_count);
 	}
 
 	else {
