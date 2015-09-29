@@ -155,6 +155,10 @@ namespace imu_vn_100 {
     bool enable_pres;
     bool enable_temp;
 
+    bool enable_sync_out;
+    int sync_out_rate;
+    int sync_out_skip_count;
+
     ros::NodeHandle nh;
     Vn100 imu;
 

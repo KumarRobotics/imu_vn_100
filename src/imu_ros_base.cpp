@@ -32,6 +32,7 @@ boost::shared_ptr<string> frame_id_ptr;
 boost::shared_ptr<bool> enable_mag_ptr;
 boost::shared_ptr<bool> enable_pres_ptr;
 boost::shared_ptr<bool> enable_temp_ptr;
+boost::shared_ptr<bool> enable_sync_out_ptr;
 
 boost::shared_ptr<SyncInfo> sync_info_ptr;
 
@@ -100,18 +101,20 @@ void asyncDataListener(void* sender,
     temp_diag_ptr->tick(imu.header.stamp);
   }
 
-  if (sync_info_ptr->getSyncCount() == -1) {
-    // Initialize the count if never set
-    sync_info_ptr->setSyncCount(data->syncInCnt);
-  } else {
-    // Record the time when the sync counter increases
-    if (sync_info_ptr->getSyncCount() != data->syncInCnt) {
-      sync_info_ptr->setSyncTime(imu.header.stamp);
+  if (*enable_sync_out_ptr) {
+    if (sync_info_ptr->getSyncCount() == -1) {
+      // Initialize the count if never set
       sync_info_ptr->setSyncCount(data->syncInCnt);
+    } else {
+      // Record the time when the sync counter increases
+      if (sync_info_ptr->getSyncCount() != data->syncInCnt) {
+        sync_info_ptr->setSyncTime(imu.header.stamp);
+        sync_info_ptr->setSyncCount(data->syncInCnt);
+      }
     }
   }
-  ROS_INFO("Sync Count:    %lld", sync_info_ptr->getSyncCount());
-  ROS_INFO("Sync Time :    %f", sync_info_ptr->getSyncTime().toSec());
+  //ROS_INFO("Sync Count:    %lld", sync_info_ptr->getSyncCount());
+  //ROS_INFO("Sync Time :    %f", sync_info_ptr->getSyncTime().toSec());
 
   // Update diagnostic info
   updater_ptr->update();
@@ -136,6 +139,8 @@ bool ImuRosBase::loadParameters() {
   nh.param<int>("baudrate", baudrate, 115200);
   nh.param<string>("frame_id", frame_id, std::string("imu"));
   nh.param<int>("imu_rate", imu_rate, 100);
+  nh.param<bool>("enable_sync_out", enable_sync_out, true);
+  nh.param<int>("sync_out_rate", sync_out_rate, 30);
   nh.param<bool>("enable_magnetic_field", enable_mag, true);
   nh.param<bool>("enable_pressure", enable_pres, true);
   nh.param<bool>("enable_temperature", enable_temp, true);
@@ -144,17 +149,30 @@ bool ImuRosBase::loadParameters() {
   enable_mag_ptr = boost::shared_ptr<bool>(&enable_mag);
   enable_pres_ptr = boost::shared_ptr<bool>(&enable_pres);
   enable_temp_ptr = boost::shared_ptr<bool>(&enable_temp);
+  enable_sync_out_ptr = boost::shared_ptr<bool>(&enable_sync_out);
   sync_info_ptr = boost::shared_ptr<SyncInfo>(&sync_info);
 
+  // Check the IMU rate
   if (imu_rate < 0) {
     imu_rate = 100;
     ROS_WARN("IMU_RATE is invalid. Reset to %d", imu_rate);
   }
-
   if (800%imu_rate != 0) {
     imu_rate = 800 / (800/imu_rate);
     ROS_WARN("IMU_RATE is invalid. Reset to %d", imu_rate);
   }
+
+  // Check the sync out rate
+  if (enable_sync_out) {
+    float new_sync_out_rate = 0.0f;
+    if (800%sync_out_rate != 0) {
+      new_sync_out_rate = 800.0 / (800/sync_out_rate);
+      ROS_INFO("Set SYNC_OUT_RATE to %f", new_sync_out_rate);
+    }
+    sync_out_skip_count = static_cast<int>(
+        floor(800.0/new_sync_out_rate+0.5f)) - 1;
+  }
+
   return true;
 }
 
@@ -262,7 +280,6 @@ bool ImuRosBase::initialize() {
   ROS_INFO("New serial baudrate: %u", old_baudrate);
 
   // Idle the device for intialization
-  ROS_INFO("Pause the device");
   error_code = vn100_pauseAsyncOutputs(&imu, true);
   errorCodeParser(error_code);
 
@@ -286,25 +303,27 @@ bool ImuRosBase::initialize() {
   errorCodeParser(error_code);
   ROS_INFO("Firmware version: %s", firmware_version_buffer);
 
-  // Configure the synchronization control register
-  ROS_INFO("Set Synchronization Control Register (id:32).");
-  error_code = vn100_setSynchronizationControl(
-	  &imu, SYNCINMODE_COUNT, SYNCINEDGE_RISING,
-	  0, SYNCOUTMODE_IMU_START, SYNCOUTPOLARITY_POSITIVE,
-	  24, 500000, true);
-  errorCodeParser(error_code);
+  if (enable_sync_out) {
+    // Configure the synchronization control register
+    ROS_INFO("Set Synchronization Control Register (id:32).");
+    error_code = vn100_setSynchronizationControl(
+      &imu, SYNCINMODE_COUNT, SYNCINEDGE_RISING,
+      0, SYNCOUTMODE_IMU_START, SYNCOUTPOLARITY_POSITIVE,
+      sync_out_skip_count, 500000, true);
+    errorCodeParser(error_code);
 
-  // Configure the communication protocal control register
-  ROS_INFO("Set Communication Protocal Control Register (id:30).");
-  error_code = vn100_setCommunicationProtocolControl(
-	  &imu, SERIALCOUNT_SYNCOUT_COUNT, SERIALSTATUS_OFF,
-	  SPICOUNT_NONE, SPISTATUS_OFF, SERIALCHECKSUM_8BIT,
-	  SPICHECKSUM_8BIT, ERRORMODE_SEND, true);
+    // Configure the communication protocal control register
+    ROS_INFO("Set Communication Protocal Control Register (id:30).");
+    error_code = vn100_setCommunicationProtocolControl(
+      &imu, SERIALCOUNT_SYNCOUT_COUNT, SERIALSTATUS_OFF,
+      SPICOUNT_NONE, SPISTATUS_OFF, SERIALCHECKSUM_8BIT,
+      SPICHECKSUM_8BIT, ERRORMODE_SEND, true);
+  }
 
   // Resume the device
-  ROS_INFO("Resume the device");
-  error_code = vn100_resumeAsyncOutputs(&imu, true);
-  errorCodeParser(error_code);
+  //ROS_INFO("Resume the device");
+  //error_code = vn100_resumeAsyncOutputs(&imu, true);
+  //errorCodeParser(error_code);
 
   // configure diagnostic updater
   if (!nh.hasParam("diagnostic_period")) {
