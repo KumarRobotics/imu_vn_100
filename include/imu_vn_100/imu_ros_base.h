@@ -19,6 +19,7 @@
 
 #include <boost/bind.hpp>
 #include <boost/shared_ptr.hpp>
+#include <boost/thread.hpp>
 
 #include <ros/ros.h>
 #include <ros/node_handle.h>
@@ -32,6 +33,42 @@
 #include <imu_vn_100/vncpplib/include/vn100.h>
 
 namespace imu_vn_100 {
+
+  /**
+   * @brief SyncInfo Contains the data for reporting
+   *    synchronization status. And it handles the
+   *    thread-safe reading and writing.
+   */
+  struct SyncInfo {
+    long long int sync_count;
+    ros::Time sync_time;
+    boost::shared_mutex mtx;
+
+    SyncInfo():
+      sync_count(-1),
+      sync_time(ros::Time::now()) {
+      return;
+    }
+    ~SyncInfo() {return;}
+
+    long long int getSyncCount() {
+      boost::shared_lock<boost::shared_mutex> read_lock(mtx);
+      return sync_count;
+    }
+    ros::Time getSyncTime() {
+      boost::shared_lock<boost::shared_mutex> read_lock(mtx);
+      return sync_time;
+    }
+    void setSyncCount(const long long int& new_count) {
+      boost::unique_lock<boost::shared_mutex> write_lock(mtx);
+      sync_count = new_count;
+      return;
+    }
+    void setSyncTime(const ros::Time& new_time) {
+      boost::unique_lock<boost::shared_mutex> write_lock(mtx);
+      sync_time = new_time;
+    }
+  };
 
   /**
    * @brief ImuRosBase The class is a ros wrapper for the Imu class
@@ -92,6 +129,7 @@ namespace imu_vn_100 {
     }
 
   private:
+
     // Settings
     std::string port;
     int baudrate;
@@ -106,8 +144,7 @@ namespace imu_vn_100 {
     Vn100 imu;
 
     // Tracking the triggering signal
-    long long int sync_count;
-    ros::Time sync_time;
+    SyncInfo sync_info;
 
     // Publishers
     ros::Publisher pub_imu;

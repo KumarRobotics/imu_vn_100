@@ -33,8 +33,7 @@ boost::shared_ptr<bool> enable_mag_ptr;
 boost::shared_ptr<bool> enable_pres_ptr;
 boost::shared_ptr<bool> enable_temp_ptr;
 
-boost::shared_ptr<long long int> sync_count_ptr;
-boost::shared_ptr<ros::Time> sync_time_ptr;
+boost::shared_ptr<SyncInfo> sync_info_ptr;
 
 boost::shared_ptr<ros::Publisher> pub_imu_ptr;
 boost::shared_ptr<ros::Publisher> pub_mag_ptr;
@@ -101,18 +100,18 @@ void asyncDataListener(void* sender,
     temp_diag_ptr->tick(imu.header.stamp);
   }
 
-  if (*sync_count_ptr == -1) {
+  if (sync_info_ptr->getSyncCount() == -1) {
     // Initialize the count if never set
-    *sync_count_ptr = data->syncInCnt;
+    sync_info_ptr->setSyncCount(data->syncInCnt);
   } else {
     // Record the time when the sync counter increases
-    if (*sync_count_ptr != data->syncInCnt) {
-      *sync_time_ptr = imu.header.stamp;
-      *sync_count_ptr = data->syncInCnt;
+    if (sync_info_ptr->getSyncCount() != data->syncInCnt) {
+      sync_info_ptr->setSyncTime(imu.header.stamp);
+      sync_info_ptr->setSyncCount(data->syncInCnt);
     }
   }
-  ROS_INFO("Sync Count:    %lld", *sync_count_ptr);
-  ROS_INFO("Sync Time :    %f", sync_time_ptr->toSec());
+  ROS_INFO("Sync Count:    %lld", sync_info_ptr->getSyncCount());
+  ROS_INFO("Sync Time :    %f", sync_info_ptr->getSyncTime().toSec());
 
   // Update diagnostic info
   updater_ptr->update();
@@ -127,9 +126,7 @@ ImuRosBase::ImuRosBase(const NodeHandle& n):
   frame_id(string("imu")),
   enable_mag(true),
   enable_pres(true),
-  enable_temp(true),
-  sync_count(-1),
-  sync_time(ros::Time::now()) {
+  enable_temp(true) {
   return;
 }
 
@@ -147,8 +144,7 @@ bool ImuRosBase::loadParameters() {
   enable_mag_ptr = boost::shared_ptr<bool>(&enable_mag);
   enable_pres_ptr = boost::shared_ptr<bool>(&enable_pres);
   enable_temp_ptr = boost::shared_ptr<bool>(&enable_temp);
-  sync_count_ptr = boost::shared_ptr<long long int>(&sync_count);
-  sync_time_ptr = boost::shared_ptr<ros::Time>(&sync_time);
+  sync_info_ptr = boost::shared_ptr<SyncInfo>(&sync_info);
 
   if (imu_rate < 0) {
     imu_rate = 100;
