@@ -128,6 +128,21 @@ namespace imu_vn_100 {
       vn100_disconnect(&imu);
     }
 
+    /**
+     * @brief getSyncCount Resturns the count for sync trigger
+     */
+    long long int getSyncCount() {
+      return sync_info.getSyncCount();
+    }
+
+    /**
+     * @brief getSyncTime Resturns the ros time stamp for the
+     *    latest trigger
+     */
+    ros::Time getSyncTime() {
+      return sync_info.getSyncTime();
+    }
+
   private:
 
     // Settings
