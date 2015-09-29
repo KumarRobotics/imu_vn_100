@@ -15,10 +15,18 @@
     <!-- Data rate in Hz -->
     <arg name="imu_rate" default="200"/>
 
+    <!-- Ros Topic settings -->
+    <arg name="enable_magnetic_field" default="false"/>
+    <arg name="enable_pressure" default="false"/>
+    <arg name="enable_temperature" default="false"/>
+
     <node pkg="imu_vn_100" name="$(arg imu)" type="imu_vn_100_cont_node" output="$(arg output)">
         <param name="port" type="string" value="$(arg port)" />
         <param name="baudrate" type="int" value="$(arg baudrate)" />
         <param name="frame_id" type="string" value="$(arg frame_id)"/>
         <param name="imu_rate" type="int" value="$(arg imu_rate)" />
+        <param name="enable_magnetic_field" type="bool" value="$(arg enable_magnetic_field)" />
+        <param name="enable_pressure" type="bool" value="$(arg enable_pressure)" />
+        <param name="enable_temperature" type="bool" value="$(arg enable_temperature)" />
     </node>
 </launch>
