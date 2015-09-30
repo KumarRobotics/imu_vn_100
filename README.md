@@ -83,6 +83,11 @@ roslauch imu_vn_100 vn_100_cont.launch
 ```
 
 ## FAQ
+1. The driver can't open my device?
+Make sure you have ownership of the device in `/dev`.
+
+2. Why I have permission error during the initialization process of the driver?
+Most often, this is because the baud rate you set does not match the package size to be received. Try increase the baud rate.
 
 ## Bug Report
 
