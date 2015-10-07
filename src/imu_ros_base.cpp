@@ -129,7 +129,9 @@ ImuRosBase::ImuRosBase(const NodeHandle& n):
   frame_id(string("imu")),
   enable_mag(true),
   enable_pres(true),
-  enable_temp(true) {
+  enable_temp(true),
+  enable_sync_out(true),
+  sync_out_pulse_width(500000){
   return;
 }
 
@@ -139,11 +141,14 @@ bool ImuRosBase::loadParameters() {
   nh.param<int>("baudrate", baudrate, 115200);
   nh.param<string>("frame_id", frame_id, std::string("imu"));
   nh.param<int>("imu_rate", imu_rate, 100);
-  nh.param<bool>("enable_sync_out", enable_sync_out, true);
-  nh.param<int>("sync_out_rate", sync_out_rate, 30);
+
   nh.param<bool>("enable_magnetic_field", enable_mag, true);
   nh.param<bool>("enable_pressure", enable_pres, true);
   nh.param<bool>("enable_temperature", enable_temp, true);
+
+  nh.param<bool>("enable_sync_out", enable_sync_out, true);
+  nh.param<int>("sync_out_rate", sync_out_rate, 30);
+  nh.param<int>("sync_out_pulse_width", sync_out_pulse_width, 500000);
 
   frame_id_ptr = boost::shared_ptr<string>(&frame_id);
   enable_mag_ptr = boost::shared_ptr<bool>(&enable_mag);
@@ -171,6 +176,11 @@ bool ImuRosBase::loadParameters() {
     }
     sync_out_skip_count = static_cast<int>(
         floor(800.0/new_sync_out_rate+0.5f)) - 1;
+
+    if (sync_out_pulse_width > 10000000) {
+      ROS_INFO("Sync out pulse with is over 10ms. Reset to 0.5ms");
+      sync_out_pulse_width = 500000;
+    }
   }
 
   return true;
@@ -309,7 +319,7 @@ bool ImuRosBase::initialize() {
     error_code = vn100_setSynchronizationControl(
       &imu, SYNCINMODE_COUNT, SYNCINEDGE_RISING,
       0, SYNCOUTMODE_IMU_START, SYNCOUTPOLARITY_POSITIVE,
-      sync_out_skip_count, 500000, true);
+      sync_out_skip_count, sync_out_pulse_width, true);
     errorCodeParser(error_code);
 
     // Configure the communication protocal control register

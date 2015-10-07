@@ -18,6 +18,7 @@
     <!-- Sync out settings -->
     <arg name="enable_sync_out" default = "true"/>
     <arg name="sync_out_rate" default = "30"/>
+    <arg name="sync_out_pulse_width" default = "500000"/>
 
     <!-- Ros Topic settings -->
     <arg name="enable_magnetic_field" default="true"/>
@@ -29,10 +30,11 @@
         <param name="baudrate" type="int" value="$(arg baudrate)" />
         <param name="frame_id" type="string" value="$(arg frame_id)"/>
         <param name="imu_rate" type="int" value="$(arg imu_rate)" />
-        <param name="enable_sync_out" type="bool" value="$(arg enable_sync_out)" />
-        <param name="sync_out_rate" type="int" value="$(arg sync_out_rate)" />
         <param name="enable_magnetic_field" type="bool" value="$(arg enable_magnetic_field)" />
         <param name="enable_pressure" type="bool" value="$(arg enable_pressure)" />
         <param name="enable_temperature" type="bool" value="$(arg enable_temperature)" />
+        <param name="enable_sync_out" type="bool" value="$(arg enable_sync_out)" />
+        <param name="sync_out_rate" type="int" value="$(arg sync_out_rate)" />
+        <param name="sync_out_pulse_width" type="int" value="$(arg sync_out_rate)" />
     </node>
 </launch>

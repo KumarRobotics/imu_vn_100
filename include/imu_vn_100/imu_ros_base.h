@@ -156,6 +156,7 @@ namespace imu_vn_100 {
     bool enable_temp;
 
     bool enable_sync_out;
+    int sync_out_pulse_width;
     int sync_out_rate;
     int sync_out_skip_count;
 
