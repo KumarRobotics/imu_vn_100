@@ -11,7 +11,7 @@ find_package(Boost REQUIRED)
 
 catkin_package(
   INCLUDE_DIRS include
-  LIBRARIES
+  LIBRARIES imu_vn_100
   CATKIN_DEPENDS diagnostic_updater geometry_msgs roscpp sensor_msgs
   DEPENDS boost
 )
