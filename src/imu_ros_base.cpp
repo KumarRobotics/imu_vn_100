@@ -169,7 +169,7 @@ bool ImuRosBase::loadParameters() {
 
   // Check the sync out rate
   if (enable_sync_out) {
-    float new_sync_out_rate = 0.0f;
+    float new_sync_out_rate = sync_out_rate;
     if (800%sync_out_rate != 0) {
       new_sync_out_rate = 800.0 / (800/sync_out_rate);
       ROS_INFO("Set SYNC_OUT_RATE to %f", new_sync_out_rate);
