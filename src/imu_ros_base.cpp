@@ -169,13 +169,13 @@ bool ImuRosBase::loadParameters() {
 
   // Check the sync out rate
   if (enable_sync_out) {
-    float new_sync_out_rate = sync_out_rate;
+    act_sync_out_rate = sync_out_rate;
     if (800%sync_out_rate != 0) {
-      new_sync_out_rate = 800.0 / (800/sync_out_rate);
-      ROS_INFO("Set SYNC_OUT_RATE to %f", new_sync_out_rate);
+      act_sync_out_rate = 800.0 / (800/sync_out_rate);
+      ROS_INFO("Set SYNC_OUT_RATE to %f", act_sync_out_rate);
     }
     sync_out_skip_count = static_cast<int>(
-        floor(800.0/new_sync_out_rate+0.5f)) - 1;
+        floor(800.0/act_sync_out_rate+0.5f)) - 1;
 
     if (sync_out_pulse_width > 10000000) {
       ROS_INFO("Sync out pulse with is over 10ms. Reset to 0.5ms");

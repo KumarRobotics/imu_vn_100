@@ -129,6 +129,13 @@ namespace imu_vn_100 {
     }
 
     /**
+     * @brief getSyncRate Returns the rate of synchronization
+     */
+    float getSyncRate() {
+      return act_sync_out_rate;
+    }
+
+    /**
      * @brief getSyncCount Resturns the count for sync trigger
      */
     long long int getSyncCount() {
@@ -158,6 +165,7 @@ namespace imu_vn_100 {
     bool enable_sync_out;
     int sync_out_pulse_width;
     int sync_out_rate;
+    float act_sync_out_rate;
     int sync_out_skip_count;
 
     ros::NodeHandle nh;
