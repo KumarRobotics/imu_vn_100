@@ -150,6 +150,7 @@ bool ImuRosBase::loadParameters() {
   nh.param<int>("sync_out_rate", sync_out_rate, 30);
   nh.param<int>("sync_out_pulse_width", sync_out_pulse_width, 500000);
 
+  update_rate = static_cast<double>(imu_rate);
   frame_id_ptr = boost::shared_ptr<string>(&frame_id);
   enable_mag_ptr = boost::shared_ptr<bool>(&enable_mag);
   enable_pres_ptr = boost::shared_ptr<bool>(&enable_pres);
@@ -346,11 +347,10 @@ bool ImuRosBase::initialize() {
   //updater->add("diagnostic_info", this,
   //    &ImuRosBase::updateDiagnosticInfo);
 
-  double imu_rate_float = static_cast<double>(imu_rate);
   diagnostic_updater::FrequencyStatusParam freqParam(
-      &imu_rate_float, &imu_rate_float, 0.01, 10);
+      &update_rate, &update_rate, 0.01, 10);
   diagnostic_updater::TimeStampStatusParam timeParam(
-      0, 0.5/imu_rate_float);
+      0, 0.5/update_rate);
   imu_diag.reset(new diagnostic_updater::TopicDiagnostic("imu",
         *updater, freqParam, timeParam));
   if (enable_mag)

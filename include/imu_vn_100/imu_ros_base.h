@@ -173,6 +173,7 @@ namespace imu_vn_100 {
     ros::Publisher pub_temp;
 
     // diagnostic_updater resources
+    double update_rate;
     boost::shared_ptr<diagnostic_updater::Updater> updater;
     boost::shared_ptr<diagnostic_updater::TopicDiagnostic> imu_diag;
     boost::shared_ptr<diagnostic_updater::TopicDiagnostic> mag_diag;
