@@ -28,25 +28,24 @@ namespace imu_vn_100 {
 //    be a class member function. So, some of
 //    the class members are made transparent
 //    here.
-boost::shared_ptr<string> frame_id_ptr;
-boost::shared_ptr<bool> enable_mag_ptr;
-boost::shared_ptr<bool> enable_pres_ptr;
-boost::shared_ptr<bool> enable_temp_ptr;
-boost::shared_ptr<bool> enable_sync_out_ptr;
+string* frame_id_ptr;
+bool* enable_mag_ptr;
+bool* enable_pres_ptr;
+bool* enable_temp_ptr;
+bool* enable_sync_out_ptr;
 
-boost::shared_ptr<SyncInfo> sync_info_ptr;
+SyncInfo* sync_info_ptr;
 
-boost::shared_ptr<ros::Publisher> pub_imu_ptr;
-boost::shared_ptr<ros::Publisher> pub_mag_ptr;
-boost::shared_ptr<ros::Publisher> pub_pres_ptr;
-boost::shared_ptr<ros::Publisher> pub_temp_ptr;
+ros::Publisher* pub_imu_ptr;
+ros::Publisher* pub_mag_ptr;
+ros::Publisher* pub_pres_ptr;
+ros::Publisher* pub_temp_ptr;
 
 boost::shared_ptr<diagnostic_updater::Updater> updater_ptr;
 boost::shared_ptr<diagnostic_updater::TopicDiagnostic> imu_diag_ptr;
 boost::shared_ptr<diagnostic_updater::TopicDiagnostic> mag_diag_ptr;
 boost::shared_ptr<diagnostic_updater::TopicDiagnostic> pres_diag_ptr;
 boost::shared_ptr<diagnostic_updater::TopicDiagnostic> temp_diag_ptr;
-
 
 // Callback function for new data event
 // in the continous stream mode
@@ -151,12 +150,12 @@ bool ImuRosBase::loadParameters() {
   nh.param<int>("sync_out_pulse_width", sync_out_pulse_width, 500000);
 
   update_rate = static_cast<double>(imu_rate);
-  frame_id_ptr = boost::shared_ptr<string>(&frame_id);
-  enable_mag_ptr = boost::shared_ptr<bool>(&enable_mag);
-  enable_pres_ptr = boost::shared_ptr<bool>(&enable_pres);
-  enable_temp_ptr = boost::shared_ptr<bool>(&enable_temp);
-  enable_sync_out_ptr = boost::shared_ptr<bool>(&enable_sync_out);
-  sync_info_ptr = boost::shared_ptr<SyncInfo>(&sync_info);
+  frame_id_ptr = &frame_id;
+  enable_mag_ptr = &enable_mag;
+  enable_pres_ptr = &enable_pres;
+  enable_temp_ptr = &enable_temp;
+  enable_sync_out_ptr = &enable_sync_out;
+  sync_info_ptr = &sync_info;
 
   // Check the IMU rate
   if (imu_rate < 0) {
@@ -190,21 +189,21 @@ bool ImuRosBase::loadParameters() {
 void ImuRosBase::createPublishers(){
   // IMU data publisher
   pub_imu = nh.advertise<sensor_msgs::Imu>("imu", 1);
-  pub_imu_ptr = boost::shared_ptr<ros::Publisher>(&pub_imu);
+  pub_imu_ptr = &pub_imu;
   // Magnetic field data publisher
   if (enable_mag) {
     pub_mag = nh.advertise<sensor_msgs::MagneticField>("magnetic_field", 1);
-    pub_mag_ptr = boost::shared_ptr<ros::Publisher>(&pub_mag);
+    pub_mag_ptr = &pub_mag;
   }
   // Pressure data publisher
   if (enable_pres) {
     pub_pres = nh.advertise<sensor_msgs::FluidPressure>("pressure", 1);
-    pub_pres_ptr = boost::shared_ptr<ros::Publisher>(&pub_pres);
+    pub_pres_ptr = &pub_pres;
   }
   // Temperature data publisher
   if (enable_temp) {
     pub_temp = nh.advertise<sensor_msgs::Temperature>("temperature", 1);
-    pub_temp_ptr = boost::shared_ptr<ros::Publisher>(&pub_temp);
+    pub_temp_ptr = &pub_temp;
   }
 
   return;
