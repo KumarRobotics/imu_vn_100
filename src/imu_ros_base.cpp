@@ -254,23 +254,23 @@ bool ImuRosBase::initialize() {
   // Create publishers
   createPublishers();
 
-	VN_ERROR_CODE error_code;
+  VN_ERROR_CODE error_code;
 
   // Connect to the device
   ROS_INFO("Connecting to device");
-	error_code = vn100_connect(&imu, port.c_str(), 115200);
+  error_code = vn100_connect(&imu, port.c_str(), 115200);
   errorCodeParser(error_code);
   ros::Duration(0.5).sleep();
   ROS_INFO("Connected to device at %s", port.c_str());
 
   // Get the old serial baudrate
   unsigned int  old_baudrate;
-	error_code = vn100_getSerialBaudRate(&imu, &old_baudrate);
+  error_code = vn100_getSerialBaudRate(&imu, &old_baudrate);
   ROS_INFO("Default serial baudrate: %u", old_baudrate);
 
   // Set the new serial baudrate
   ROS_INFO("Set serial baudrate to %d", baudrate);
-	error_code = vn100_setSerialBaudRate(&imu, baudrate, true);
+  error_code = vn100_setSerialBaudRate(&imu, baudrate, true);
   errorCodeParser(error_code);
 
   // Disconnect the device
@@ -280,13 +280,13 @@ bool ImuRosBase::initialize() {
 
   // Reconnect to the device
   ROS_INFO("Reconnecting to device");
-	error_code = vn100_connect(&imu, port.c_str(), baudrate);
+  error_code = vn100_connect(&imu, port.c_str(), baudrate);
   errorCodeParser(error_code);
   ros::Duration(0.5).sleep();
   ROS_INFO("Connected to device at %s", port.c_str());
 
   // Check the new baudrate
-	error_code = vn100_getSerialBaudRate(&imu, &old_baudrate);
+  error_code = vn100_getSerialBaudRate(&imu, &old_baudrate);
   ROS_INFO("New serial baudrate: %u", old_baudrate);
 
   // Idle the device for intialization
@@ -373,7 +373,7 @@ bool ImuRosBase::initialize() {
 
 void ImuRosBase::enableIMUStream(bool enabled){
 
-	VN_ERROR_CODE error_code;
+  VN_ERROR_CODE error_code;
 
   // Pause the device first
   error_code = vn100_pauseAsyncOutputs(&imu, true);
