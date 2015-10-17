@@ -3,7 +3,6 @@ project(imu_vn_100)
 
 find_package(catkin REQUIRED COMPONENTS
   diagnostic_updater
-  geometry_msgs
   roscpp
   sensor_msgs
 )
@@ -12,7 +11,7 @@ find_package(Boost REQUIRED)
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES imu_vn_100
-  CATKIN_DEPENDS diagnostic_updater geometry_msgs roscpp sensor_msgs
+  CATKIN_DEPENDS diagnostic_updater roscpp sensor_msgs
   DEPENDS boost
 )
 
