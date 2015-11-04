@@ -138,7 +138,7 @@ bool ImuRosBase::loadParameters() {
 
   nh.param<string>("port", port, std::string("/dev/ttyUSB0"));
   nh.param<int>("baudrate", baudrate, 115200);
-  nh.param<string>("frame_id", frame_id, std::string("imu"));
+  nh.param<string>("frame_id", frame_id, nh.getNamespace());
   nh.param<int>("imu_rate", imu_rate, 100);
 
   nh.param<bool>("enable_magnetic_field", enable_mag, true);
