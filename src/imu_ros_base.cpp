@@ -33,6 +33,7 @@ bool* enable_mag_ptr;
 bool* enable_pres_ptr;
 bool* enable_temp_ptr;
 bool* enable_sync_out_ptr;
+bool* use_binary_output_ptr;
 
 SyncInfo* sync_info_ptr;
 
@@ -62,12 +63,26 @@ void asyncDataListener(void* sender,
   //imu.orientation.z = data->quaternion.z;
   //imu.orientation.w = data->quaternion.w;
 
-  imu.linear_acceleration.x = data->acceleration.c0;
-  imu.linear_acceleration.y = data->acceleration.c1;
-  imu.linear_acceleration.z = data->acceleration.c2;
-  imu.angular_velocity.x = data->angularRate.c0;
-  imu.angular_velocity.y = data->angularRate.c1;
-  imu.angular_velocity.z = data->angularRate.c2;
+  if(*use_binary_output_ptr) {
+    imu.orientation.x = data->quaternion.x;
+    imu.orientation.y = data->quaternion.y;
+    imu.orientation.z = data->quaternion.z;
+    imu.orientation.w = data->quaternion.w;
+    // NOTE: The IMU angular velocity and linear acceleration outputs are swapped
+    imu.angular_velocity.x = data->accelerationUncompensated.c0;
+    imu.angular_velocity.y = data->accelerationUncompensated.c1;
+    imu.angular_velocity.z = data->accelerationUncompensated.c2;
+    imu.linear_acceleration.x = data->angularRateUncompensated.c0;
+    imu.linear_acceleration.y = data->angularRateUncompensated.c1;
+    imu.linear_acceleration.z = data->angularRateUncompensated.c2;
+  } else {
+    imu.linear_acceleration.x = data->acceleration.c0;
+    imu.linear_acceleration.y = data->acceleration.c1;
+    imu.linear_acceleration.z = data->acceleration.c2;
+    imu.angular_velocity.x = data->angularRate.c0;
+    imu.angular_velocity.y = data->angularRate.c1;
+    imu.angular_velocity.z = data->angularRate.c2;
+  }
   pub_imu_ptr->publish(imu);
   imu_diag_ptr->tick(imu.header.stamp);
 
@@ -112,8 +127,8 @@ void asyncDataListener(void* sender,
       }
     }
   }
-  //ROS_INFO("Sync Count:    %lld", sync_info_ptr->getSyncCount());
-  //ROS_INFO("Sync Time :    %f", sync_info_ptr->getSyncTime().toSec());
+  // ROS_INFO("Sync Count:    %lld", sync_info_ptr->getSyncCount());
+  // ROS_INFO("Sync Time :    %f", sync_info_ptr->getSyncTime().toSec());
 
   // Update diagnostic info
   updater_ptr->update();
@@ -149,12 +164,15 @@ bool ImuRosBase::loadParameters() {
   nh.param<int>("sync_out_rate", sync_out_rate, 30);
   nh.param<int>("sync_out_pulse_width", sync_out_pulse_width, 500000);
 
+  nh.param<bool>("use_binary_output", use_binary_output, true);
+
   update_rate = static_cast<double>(imu_rate);
   frame_id_ptr = &frame_id;
   enable_mag_ptr = &enable_mag;
   enable_pres_ptr = &enable_pres;
   enable_temp_ptr = &enable_temp;
   enable_sync_out_ptr = &enable_sync_out;
+  use_binary_output_ptr = &use_binary_output;
   sync_info_ptr = &sync_info;
 
   // Check the IMU rate
@@ -228,6 +246,9 @@ void ImuRosBase::errorCodeParser(const VN_ERROR_CODE& error_code) {
     case VNERR_TIMEOUT:
       ROS_WARN("Opertation time out");
       break;
+    case VNERR_SENSOR_INVALID_PARAMETER:
+      ROS_WARN("Invalid parameter was provided");
+      break;
     case VNERR_INVALID_VALUE:
       ROS_WARN("Invalid value was provided");
       break;
@@ -264,7 +285,7 @@ bool ImuRosBase::initialize() {
   ROS_INFO("Connected to device at %s", port.c_str());
 
   // Get the old serial baudrate
-  unsigned int  old_baudrate;
+  unsigned int old_baudrate;
   error_code = vn100_getSerialBaudRate(&imu, &old_baudrate);
   ROS_INFO("Default serial baudrate: %u", old_baudrate);
 
@@ -322,12 +343,14 @@ bool ImuRosBase::initialize() {
       sync_out_skip_count, sync_out_pulse_width, true);
     errorCodeParser(error_code);
 
-    // Configure the communication protocal control register
-    ROS_INFO("Set Communication Protocal Control Register (id:30).");
-    error_code = vn100_setCommunicationProtocolControl(
-      &imu, SERIALCOUNT_SYNCOUT_COUNT, SERIALSTATUS_OFF,
-      SPICOUNT_NONE, SPISTATUS_OFF, SERIALCHECKSUM_8BIT,
-      SPICHECKSUM_8BIT, ERRORMODE_SEND, true);
+    if(!use_binary_output) {
+      // Configure the communication protocal control register
+      ROS_INFO("Set Communication Protocal Control Register (id:30).");
+      error_code = vn100_setCommunicationProtocolControl(
+          &imu, SERIALCOUNT_SYNCOUT_COUNT, SERIALSTATUS_OFF,
+          SPICOUNT_NONE, SPISTATUS_OFF, SERIALCHECKSUM_8BIT,
+          SPICHECKSUM_8BIT, ERRORMODE_SEND, true);
+    }
   }
 
   // Resume the device
@@ -380,32 +403,39 @@ void ImuRosBase::enableIMUStream(bool enabled){
   errorCodeParser(error_code);
 
   if (enabled) {
+    error_code = vn100_setAsynchronousDataOutputType(
+          &imu, VNASYNC_OFF, true);
+    errorCodeParser(error_code);
+
+    if(use_binary_output) {
     // Set the binary output data type and data rate
-    //error_code = vn100_setAsynchronousDataOutputType(
-    //      &imu, VNASYNC_OFF, true);
-    //error_code = vn100_setBinaryOutput1Configuration(
-    //  &imu, BINARY_ASYNC_MODE_SERIAL_1,
-    //  static_cast<int>(800/imu_rate),
-    //  BG1_QTN | BG1_IMU | BG1_MAG_PRES,
-    //  //BG1_IMU,
-    //  BG3_NONE, BG5_NONE, true);
+    error_code = vn100_setBinaryOutput1Configuration(
+      &imu, BINARY_ASYNC_MODE_SERIAL_2,
+      static_cast<int>(800/imu_rate),
+      BG1_QTN | BG1_IMU | BG1_MAG_PRES | BG1_SYNC_IN_CNT,
+      //BG1_IMU,
+      BG3_NONE, BG5_NONE, true);
+    errorCodeParser(error_code);
     //unsigned int base_freq = 0;
     //error_code = vn100_getAsynchronousDataOutputFrequency(
     //  &imu, &base_freq);
-    //ROS_INFO("Base frequency: %d", base_freq);
-
+    //errorCodeParser(error_code);
+    } else {
     // Set the ASCII output data type and data rate
-    ROS_INFO("Configure the output data type and frequency (id: 6 & 7)");
+    //ROS_INFO("Configure the output data type and frequency (id: 6 & 7)");
     error_code = vn100_setAsynchronousDataOutputType(
         &imu, VNASYNC_VNIMU, true);
     errorCodeParser(error_code);
-    error_code  = vn100_setAsynchronousDataOutputFrequency(
-        &imu, imu_rate, true);
-    errorCodeParser(error_code);
+    }
 
     // Add a callback function for new data event
     error_code = vn100_registerAsyncDataReceivedListener(
         &imu, &asyncDataListener);
+    errorCodeParser(error_code);
+
+    ROS_INFO("Setting IMU rate to %d", imu_rate);
+    error_code  = vn100_setAsynchronousDataOutputFrequency(
+        &imu, imu_rate, true);
     errorCodeParser(error_code);
   } else {
     // Mute the stream

@@ -161,6 +161,7 @@ namespace imu_vn_100 {
     bool enable_mag;
     bool enable_pres;
     bool enable_temp;
+    bool use_binary_output;
 
     bool enable_sync_out;
     int sync_out_pulse_width;
