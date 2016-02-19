@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef IMU_VN_100_ROS_H
-#define IMU_VN_100_ROS_H
+#ifndef IMU_VN_100_ROS_H_
+#define IMU_VN_100_ROS_H_
 
 #include <boost/bind.hpp>
 #include <boost/shared_ptr.hpp>
@@ -75,7 +75,7 @@ class ImuRosBase {
   /**
    * @brief Constructor of the class
    */
-  ImuRosBase(const ros::NodeHandle& nh);
+  ImuRosBase(const ros::NodeHandle& pnh);
   /**
    * @brief Destructor of the class
    * @note Disconnect the device automatically
@@ -130,7 +130,7 @@ class ImuRosBase {
   /**
    * @brief getSyncCount Resturns the count for sync trigger
    */
-  long long int getSyncCount() { return sync_info.sync_count(); }
+  uuid getSyncCount() { return sync_info.sync_count(); }
 
   /**
    * @brief getSyncTime Resturns the ros time stamp for the
@@ -156,7 +156,7 @@ class ImuRosBase {
   float act_sync_out_rate;
   int sync_out_skip_count;
 
-  ros::NodeHandle nh;
+  ros::NodeHandle pnh_;
   Vn100 imu;
 
   // Tracking the triggering signal
@@ -189,6 +189,7 @@ class ImuRosBase {
   // Callback function for adding meta info in the diag msgs
   void updateDiagnosticInfo(diagnostic_updater::DiagnosticStatusWrapper& stat);
 };
-}
 
-#endif
+}  // namespace imu_vn_100
+
+#endif  // IMU_VN_100_ROS_H_

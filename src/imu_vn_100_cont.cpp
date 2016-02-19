@@ -34,7 +34,7 @@ int main(int argc, char **argv) {
   }
 
   // Enable the continuous streaming
-  imu.enableIMUStream(true);
+  imu.enableStream(true);
 
   ros::spin();
 

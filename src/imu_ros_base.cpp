@@ -134,8 +134,8 @@ void asyncDataListener(void* sender, VnDeviceCompositeData* data) {
   return;
 }
 
-ImuRosBase::ImuRosBase(const NodeHandle& n)
-    : nh(n),
+ImuRosBase::ImuRosBase(const NodeHandle& pnh)
+    : pnh_(pnh),
       port(string("/dev/ttyUSB0")),
       baudrate(921600),
       frame_id(string("imu")),
@@ -143,25 +143,23 @@ ImuRosBase::ImuRosBase(const NodeHandle& n)
       enable_pres(true),
       enable_temp(true),
       enable_sync_out(true),
-      sync_out_pulse_width(500000) {
-  return;
-}
+      sync_out_pulse_width(500000) {}
 
 bool ImuRosBase::loadParameters() {
-  nh.param<string>("port", port, std::string("/dev/ttyUSB0"));
-  nh.param<int>("baudrate", baudrate, 115200);
-  nh.param<string>("frame_id", frame_id, nh.getNamespace());
-  nh.param<int>("imu_rate", imu_rate, 100);
+  pnh_.param<string>("port", port, std::string("/dev/ttyUSB0"));
+  pnh_.param("baudrate", baudrate, 115200);
+  pnh_.param<string>("frame_id", frame_id, pnh_.getNamespace());
+  pnh_.param("imu_rate", imu_rate, 100);
 
-  nh.param<bool>("enable_magnetic_field", enable_mag, true);
-  nh.param<bool>("enable_pressure", enable_pres, true);
-  nh.param<bool>("enable_temperature", enable_temp, true);
+  pnh_.param<bool>("enable_magnetic_field", enable_mag, true);
+  pnh_.param<bool>("enable_pressure", enable_pres, true);
+  pnh_.param<bool>("enable_temperature", enable_temp, true);
 
-  nh.param<bool>("enable_sync_out", enable_sync_out, true);
-  nh.param<int>("sync_out_rate", sync_out_rate, 30);
-  nh.param<int>("sync_out_pulse_width", sync_out_pulse_width, 500000);
+  pnh_.param<bool>("enable_sync_out", enable_sync_out, true);
+  pnh_.param<int>("sync_out_rate", sync_out_rate, 30);
+  pnh_.param<int>("sync_out_pulse_width", sync_out_pulse_width, 500000);
 
-  nh.param<bool>("use_binary_output", use_binary_output, true);
+  pnh_.param<bool>("use_binary_output", use_binary_output, true);
 
   update_rate = static_cast<double>(imu_rate);
   frame_id_ptr = &frame_id;
@@ -203,21 +201,21 @@ bool ImuRosBase::loadParameters() {
 
 void ImuRosBase::createPublishers() {
   // IMU data publisher
-  pub_imu = nh.advertise<sensor_msgs::Imu>("imu", 1);
+  pub_imu = pnh_.advertise<sensor_msgs::Imu>("imu", 1);
   pub_imu_ptr = &pub_imu;
   // Magnetic field data publisher
   if (enable_mag) {
-    pub_mag = nh.advertise<sensor_msgs::MagneticField>("magnetic_field", 1);
+    pub_mag = pnh_.advertise<sensor_msgs::MagneticField>("magnetic_field", 1);
     pub_mag_ptr = &pub_mag;
   }
   // Pressure data publisher
   if (enable_pres) {
-    pub_pres = nh.advertise<sensor_msgs::FluidPressure>("pressure", 1);
+    pub_pres = pnh_.advertise<sensor_msgs::FluidPressure>("pressure", 1);
     pub_pres_ptr = &pub_pres;
   }
   // Temperature data publisher
   if (enable_temp) {
-    pub_temp = nh.advertise<sensor_msgs::Temperature>("temperature", 1);
+    pub_temp = pnh_.advertise<sensor_msgs::Temperature>("temperature", 1);
     pub_temp_ptr = &pub_temp;
   }
 
@@ -356,8 +354,8 @@ bool ImuRosBase::initialize() {
   // errorCodeParser(error_code);
 
   // configure diagnostic updater
-  if (!nh.hasParam("diagnostic_period")) {
-    nh.setParam("diagnostic_period", 0.2);
+  if (!pnh_.hasParam("diagnostic_period")) {
+    pnh_.setParam("diagnostic_period", 0.2);
   }
 
   updater.reset(new diagnostic_updater::Updater());
