@@ -16,7 +16,6 @@
 
 #include <imu_vn_100/imu_ros_base.h>
 
-
 using namespace std;
 using namespace ros;
 
@@ -50,25 +49,24 @@ boost::shared_ptr<diagnostic_updater::TopicDiagnostic> temp_diag_ptr;
 
 // Callback function for new data event
 // in the continous stream mode
-void asyncDataListener(void* sender,
-    VnDeviceCompositeData* data) {
-
+void asyncDataListener(void* sender, VnDeviceCompositeData* data) {
   sensor_msgs::Imu imu;
   imu.header.stamp = ros::Time::now();
   imu.header.frame_id = *frame_id_ptr;
 
   // TODO: get the covariance for the estimated attitude
-  //imu.orientation.x = data->quaternion.x;
-  //imu.orientation.y = data->quaternion.y;
-  //imu.orientation.z = data->quaternion.z;
-  //imu.orientation.w = data->quaternion.w;
+  // imu.orientation.x = data->quaternion.x;
+  // imu.orientation.y = data->quaternion.y;
+  // imu.orientation.z = data->quaternion.z;
+  // imu.orientation.w = data->quaternion.w;
 
-  if(*use_binary_output_ptr) {
+  if (*use_binary_output_ptr) {
     imu.orientation.x = data->quaternion.x;
     imu.orientation.y = data->quaternion.y;
     imu.orientation.z = data->quaternion.z;
     imu.orientation.w = data->quaternion.w;
-    // NOTE: The IMU angular velocity and linear acceleration outputs are swapped
+    // NOTE: The IMU angular velocity and linear acceleration outputs are
+    // swapped
     imu.angular_velocity.x = data->accelerationUncompensated.c0;
     imu.angular_velocity.y = data->accelerationUncompensated.c1;
     imu.angular_velocity.z = data->accelerationUncompensated.c2;
@@ -116,12 +114,12 @@ void asyncDataListener(void* sender,
   }
 
   if (*enable_sync_out_ptr) {
-    if (sync_info_ptr->getSyncCount() == -1) {
+    if (sync_info_ptr->sync_count() == -1) {
       // Initialize the count if never set
       sync_info_ptr->setSyncCount(data->syncInCnt);
     } else {
       // Record the time when the sync counter increases
-      if (sync_info_ptr->getSyncCount() != data->syncInCnt) {
+      if (sync_info_ptr->sync_count() != data->syncInCnt) {
         sync_info_ptr->setSyncTime(imu.header.stamp);
         sync_info_ptr->setSyncCount(data->syncInCnt);
       }
@@ -136,21 +134,20 @@ void asyncDataListener(void* sender,
   return;
 }
 
-ImuRosBase::ImuRosBase(const NodeHandle& n):
-  nh(n),
-  port(string("/dev/ttyUSB0")),
-  baudrate(921600),
-  frame_id(string("imu")),
-  enable_mag(true),
-  enable_pres(true),
-  enable_temp(true),
-  enable_sync_out(true),
-  sync_out_pulse_width(500000){
+ImuRosBase::ImuRosBase(const NodeHandle& n)
+    : nh(n),
+      port(string("/dev/ttyUSB0")),
+      baudrate(921600),
+      frame_id(string("imu")),
+      enable_mag(true),
+      enable_pres(true),
+      enable_temp(true),
+      enable_sync_out(true),
+      sync_out_pulse_width(500000) {
   return;
 }
 
 bool ImuRosBase::loadParameters() {
-
   nh.param<string>("port", port, std::string("/dev/ttyUSB0"));
   nh.param<int>("baudrate", baudrate, 115200);
   nh.param<string>("frame_id", frame_id, nh.getNamespace());
@@ -180,20 +177,20 @@ bool ImuRosBase::loadParameters() {
     imu_rate = 100;
     ROS_WARN("IMU_RATE is invalid. Reset to %d", imu_rate);
   }
-  if (800%imu_rate != 0) {
-    imu_rate = 800 / (800/imu_rate);
+  if (800 % imu_rate != 0) {
+    imu_rate = 800 / (800 / imu_rate);
     ROS_WARN("IMU_RATE is invalid. Reset to %d", imu_rate);
   }
 
   // Check the sync out rate
   if (enable_sync_out) {
     act_sync_out_rate = sync_out_rate;
-    if (800%sync_out_rate != 0) {
-      act_sync_out_rate = 800.0 / (800/sync_out_rate);
+    if (800 % sync_out_rate != 0) {
+      act_sync_out_rate = 800.0 / (800 / sync_out_rate);
       ROS_INFO("Set SYNC_OUT_RATE to %f", act_sync_out_rate);
     }
-    sync_out_skip_count = static_cast<int>(
-        floor(800.0/act_sync_out_rate+0.5f)) - 1;
+    sync_out_skip_count =
+        static_cast<int>(floor(800.0 / act_sync_out_rate + 0.5f)) - 1;
 
     if (sync_out_pulse_width > 10000000) {
       ROS_INFO("Sync out pulse with is over 10ms. Reset to 0.5ms");
@@ -204,7 +201,7 @@ bool ImuRosBase::loadParameters() {
   return true;
 }
 
-void ImuRosBase::createPublishers(){
+void ImuRosBase::createPublishers() {
   // IMU data publisher
   pub_imu = nh.advertise<sensor_msgs::Imu>("imu", 1);
   pub_imu_ptr = &pub_imu;
@@ -270,7 +267,7 @@ void ImuRosBase::errorCodeParser(const VN_ERROR_CODE& error_code) {
 
 bool ImuRosBase::initialize() {
   // load parameters
-  if(!loadParameters()) return false;
+  if (!loadParameters()) return false;
 
   // Create publishers
   createPublishers();
@@ -338,25 +335,25 @@ bool ImuRosBase::initialize() {
     // Configure the synchronization control register
     ROS_INFO("Set Synchronization Control Register (id:32).");
     error_code = vn100_setSynchronizationControl(
-      &imu, SYNCINMODE_COUNT, SYNCINEDGE_RISING,
-      0, SYNCOUTMODE_IMU_START, SYNCOUTPOLARITY_POSITIVE,
-      sync_out_skip_count, sync_out_pulse_width, true);
+        &imu, SYNCINMODE_COUNT, SYNCINEDGE_RISING, 0, SYNCOUTMODE_IMU_START,
+        SYNCOUTPOLARITY_POSITIVE, sync_out_skip_count, sync_out_pulse_width,
+        true);
     errorCodeParser(error_code);
 
-    if(!use_binary_output) {
+    if (!use_binary_output) {
       // Configure the communication protocal control register
       ROS_INFO("Set Communication Protocal Control Register (id:30).");
       error_code = vn100_setCommunicationProtocolControl(
-          &imu, SERIALCOUNT_SYNCOUT_COUNT, SERIALSTATUS_OFF,
-          SPICOUNT_NONE, SPISTATUS_OFF, SERIALCHECKSUM_8BIT,
-          SPICHECKSUM_8BIT, ERRORMODE_SEND, true);
+          &imu, SERIALCOUNT_SYNCOUT_COUNT, SERIALSTATUS_OFF, SPICOUNT_NONE,
+          SPISTATUS_OFF, SERIALCHECKSUM_8BIT, SPICHECKSUM_8BIT, ERRORMODE_SEND,
+          true);
     }
   }
 
   // Resume the device
-  //ROS_INFO("Resume the device");
-  //error_code = vn100_resumeAsyncOutputs(&imu, true);
-  //errorCodeParser(error_code);
+  // ROS_INFO("Resume the device");
+  // error_code = vn100_resumeAsyncOutputs(&imu, true);
+  // errorCodeParser(error_code);
 
   // configure diagnostic updater
   if (!nh.hasParam("diagnostic_period")) {
@@ -366,24 +363,23 @@ bool ImuRosBase::initialize() {
   updater.reset(new diagnostic_updater::Updater());
   string hw_id = string("vn100") + '-' + string(model_number_buffer);
   updater->setHardwareID(hw_id);
-  //updater->add("diagnostic_info", this,
+  // updater->add("diagnostic_info", this,
   //    &ImuRosBase::updateDiagnosticInfo);
 
-  diagnostic_updater::FrequencyStatusParam freqParam(
-      &update_rate, &update_rate, 0.01, 10);
-  diagnostic_updater::TimeStampStatusParam timeParam(
-      0, 0.5/update_rate);
-  imu_diag.reset(new diagnostic_updater::TopicDiagnostic("imu",
-        *updater, freqParam, timeParam));
+  diagnostic_updater::FrequencyStatusParam freqParam(&update_rate, &update_rate,
+                                                     0.01, 10);
+  diagnostic_updater::TimeStampStatusParam timeParam(0, 0.5 / update_rate);
+  imu_diag.reset(new diagnostic_updater::TopicDiagnostic("imu", *updater,
+                                                         freqParam, timeParam));
   if (enable_mag)
-    mag_diag.reset(new diagnostic_updater::TopicDiagnostic("magnetic_field",
-          *updater, freqParam, timeParam));
+    mag_diag.reset(new diagnostic_updater::TopicDiagnostic(
+        "magnetic_field", *updater, freqParam, timeParam));
   if (enable_pres)
-    pres_diag.reset(new diagnostic_updater::TopicDiagnostic("pressure",
-          *updater, freqParam, timeParam));
+    pres_diag.reset(new diagnostic_updater::TopicDiagnostic(
+        "pressure", *updater, freqParam, timeParam));
   if (enable_temp)
-    temp_diag.reset(new diagnostic_updater::TopicDiagnostic("temperature",
-          *updater, freqParam, timeParam));
+    temp_diag.reset(new diagnostic_updater::TopicDiagnostic(
+        "temperature", *updater, freqParam, timeParam));
 
   updater_ptr = updater;
   imu_diag_ptr = imu_diag;
@@ -394,8 +390,7 @@ bool ImuRosBase::initialize() {
   return true;
 }
 
-void ImuRosBase::enableIMUStream(bool enabled){
-
+void ImuRosBase::enableStream(bool enabled) {
   VN_ERROR_CODE error_code;
 
   // Pause the device first
@@ -403,49 +398,45 @@ void ImuRosBase::enableIMUStream(bool enabled){
   errorCodeParser(error_code);
 
   if (enabled) {
-    error_code = vn100_setAsynchronousDataOutputType(
-          &imu, VNASYNC_OFF, true);
+    error_code = vn100_setAsynchronousDataOutputType(&imu, VNASYNC_OFF, true);
     errorCodeParser(error_code);
 
-    if(use_binary_output) {
-    // Set the binary output data type and data rate
-    error_code = vn100_setBinaryOutput1Configuration(
-      &imu, BINARY_ASYNC_MODE_SERIAL_2,
-      static_cast<int>(800/imu_rate),
-      BG1_QTN | BG1_IMU | BG1_MAG_PRES | BG1_SYNC_IN_CNT,
-      //BG1_IMU,
-      BG3_NONE, BG5_NONE, true);
-    errorCodeParser(error_code);
-    //unsigned int base_freq = 0;
-    //error_code = vn100_getAsynchronousDataOutputFrequency(
-    //  &imu, &base_freq);
-    //errorCodeParser(error_code);
+    if (use_binary_output) {
+      // Set the binary output data type and data rate
+      error_code = vn100_setBinaryOutput1Configuration(
+          &imu, BINARY_ASYNC_MODE_SERIAL_2, static_cast<int>(800 / imu_rate),
+          BG1_QTN | BG1_IMU | BG1_MAG_PRES | BG1_SYNC_IN_CNT,
+          // BG1_IMU,
+          BG3_NONE, BG5_NONE, true);
+      errorCodeParser(error_code);
+      // unsigned int base_freq = 0;
+      // error_code = vn100_getAsynchronousDataOutputFrequency(
+      //  &imu, &base_freq);
+      // errorCodeParser(error_code);
     } else {
-    // Set the ASCII output data type and data rate
-    //ROS_INFO("Configure the output data type and frequency (id: 6 & 7)");
-    error_code = vn100_setAsynchronousDataOutputType(
-        &imu, VNASYNC_VNIMU, true);
-    errorCodeParser(error_code);
+      // Set the ASCII output data type and data rate
+      // ROS_INFO("Configure the output data type and frequency (id: 6 & 7)");
+      error_code =
+          vn100_setAsynchronousDataOutputType(&imu, VNASYNC_VNIMU, true);
+      errorCodeParser(error_code);
     }
 
     // Add a callback function for new data event
-    error_code = vn100_registerAsyncDataReceivedListener(
-        &imu, &asyncDataListener);
+    error_code =
+        vn100_registerAsyncDataReceivedListener(&imu, &asyncDataListener);
     errorCodeParser(error_code);
 
     ROS_INFO("Setting IMU rate to %d", imu_rate);
-    error_code  = vn100_setAsynchronousDataOutputFrequency(
-        &imu, imu_rate, true);
+    error_code = vn100_setAsynchronousDataOutputFrequency(&imu, imu_rate, true);
     errorCodeParser(error_code);
   } else {
     // Mute the stream
     ROS_INFO("Mute the device");
-    error_code = vn100_setAsynchronousDataOutputType(
-          &imu, VNASYNC_OFF, true);
+    error_code = vn100_setAsynchronousDataOutputType(&imu, VNASYNC_OFF, true);
     errorCodeParser(error_code);
     // Remove the callback function for new data event
-    error_code = vn100_unregisterAsyncDataReceivedListener(
-        &imu, &asyncDataListener);
+    error_code =
+        vn100_unregisterAsyncDataReceivedListener(&imu, &asyncDataListener);
     errorCodeParser(error_code);
   }
 
@@ -455,13 +446,9 @@ void ImuRosBase::enableIMUStream(bool enabled){
   return;
 }
 
-void ImuRosBase::requestIMUOnce() {
-  return;
-}
+void ImuRosBase::requestOnce() { return; }
 
-void ImuRosBase::publishIMUData() {
-  return;
-}
+void ImuRosBase::publishIMUData() { return; }
 
 void ImuRosBase::updateDiagnosticInfo(
     diagnostic_updater::DiagnosticStatusWrapper& stat) {
@@ -469,4 +456,4 @@ void ImuRosBase::updateDiagnosticInfo(
   return;
 }
 
-}// End namespace imu_vn_100
+}  // End namespace imu_vn_100
