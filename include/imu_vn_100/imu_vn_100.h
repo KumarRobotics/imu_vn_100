@@ -29,21 +29,27 @@
 
 namespace imu_vn_100 {
 
-using uuid = long long int;
-
 struct SyncInfo {
-  uuid sync_count_;
-  ros::Time sync_time_;
+  unsigned sync_count;
+  ros::Time sync_time;
 
-  SyncInfo() : sync_count_(-1), sync_time_(ros::Time::now()) {}
+  SyncInfo() : sync_count(-1), sync_time(ros::Time::now()) {}
 
-  uuid sync_count() { return sync_count_; }
-
-  ros::Time sync_time() { return sync_time_; }
-
-  void set_sync_count(const uuid& sync_count) { sync_count_ = sync_count; }
-
-  void set_sync_time(const ros::Time& sync_time) { sync_time_ = sync_time; }
+  void Update(const unsigned sync_in_cnt, const ros::Time& time) {
+    sync_count = sync_in_cnt;
+    sync_time = time;
+    if (sync_count == -1) {
+      // Initialize the count if never set
+      sync_count = sync_in_cnt;
+      sync_time = time;
+    } else {
+      // Record the time when the sync counter increases
+      if (sync_count != sync_in_cnt) {
+        sync_count = sync_in_cnt;
+        sync_time = time;
+      }
+    }
+  }
 };
 
 /**
@@ -77,8 +83,6 @@ class ImuVn100 {
   void Configure();
 
   int sync_out_rate() const;
-
-  uuid sync_count() const;
 
   const ros::Time sync_time() const;
 
@@ -114,13 +118,6 @@ class ImuVn100 {
   ros::Publisher pub_mag_;
   ros::Publisher pub_pres_;
   ros::Publisher pub_temp_;
-
-  // diagnostic_updater resources
-  //  boost::shared_ptr<diagnostic_updater::Updater> updater;
-  //  boost::shared_ptr<diagnostic_updater::TopicDiagnostic> imu_diag;
-  //  boost::shared_ptr<diagnostic_updater::TopicDiagnostic> mag_diag;
-  //  boost::shared_ptr<diagnostic_updater::TopicDiagnostic> pres_diag;
-  //  boost::shared_ptr<diagnostic_updater::TopicDiagnostic> temp_diag;
 
   void FixImuRate();
   void FixSyncOutRate();

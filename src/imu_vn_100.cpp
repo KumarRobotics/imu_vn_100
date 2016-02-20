@@ -18,18 +18,19 @@
 
 namespace imu_vn_100 {
 
+void RosVector3FromVnVector3(geometry_msgs::Vector3& ros_vec3,
+                             const VnVector3& vn_vec3);
+void RosQuaternionFromVnQuaternion(geometry_msgs::Quaternion& ros_quat,
+                                   const VnQuaternion& vn_quat);
+void FillImuMessage(sensor_msgs::Imu& imu_msg,
+                    const VnDeviceCompositeData& data, bool binary_output);
+
 // LESS HACK IS STILL HACK
 ImuVn100* evil_global_;
 
 constexpr int ImuVn100::kBaseImuRate;
 constexpr int ImuVn100::kDefaultImuRate;
 constexpr int ImuVn100::kDefaultSyncOutRate;
-
-// boost::shared_ptr<diagnostic_updater::Updater> updater_ptr;
-// boost::shared_ptr<diagnostic_updater::TopicDiagnostic> imu_diag_ptr;
-// boost::shared_ptr<diagnostic_updater::TopicDiagnostic> mag_diag_ptr;
-// boost::shared_ptr<diagnostic_updater::TopicDiagnostic> pres_diag_ptr;
-// boost::shared_ptr<diagnostic_updater::TopicDiagnostic> temp_diag_ptr;
 
 void AsyncListener(void* sender, VnDeviceCompositeData* data) {
   evil_global_->PublishData(*data);
@@ -60,7 +61,6 @@ void ImuVn100::FixImuRate() {
     ROS_WARN("Imu rate %d cannot evenly decimate base rate %d, reset to %d",
              imu_rate_old, kBaseImuRate, imu_rate_);
   }
-  ROS_ASSERT_MSG(kBaseImuRate % imu_rate_ == 0, "Imu rate is fucked up");
 }
 
 void ImuVn100::FixSyncOutRate() {
@@ -76,8 +76,6 @@ void ImuVn100::FixSyncOutRate() {
       ROS_INFO("Sync out pulse with is over 10ms. Reset to 0.5ms");
       sync_out_pulse_width_us_ = 500000;
     }
-    ROS_ASSERT_MSG(kBaseImuRate % sync_out_rate_ == 0,
-                   "Sync out rate is fucked up");
   }
 }
 
@@ -131,33 +129,27 @@ void ImuVn100::Initialize() {
   LoadParameters();
   CreatePublishers();
 
-  // Connect to the device
   ROS_DEBUG("Connecting to device");
   VnEnsure(vn100_connect(&imu_, port_.c_str(), 115200));
   ros::Duration(0.5).sleep();
   ROS_INFO("Connected to device at %s", port_.c_str());
 
-  // Get the old serial baudrate
   unsigned int old_baudrate;
   VnEnsure(vn100_getSerialBaudRate(&imu_, &old_baudrate));
   ROS_INFO("Default serial baudrate: %u", old_baudrate);
 
-  // Set the new serial baudrate
   ROS_INFO("Set serial baudrate to %d", baudrate_);
   VnEnsure(vn100_setSerialBaudRate(&imu_, baudrate_, true));
 
-  // Disconnect the device
   ROS_DEBUG("Disconnecting the device");
   vn100_disconnect(&imu_);
   ros::Duration(0.5).sleep();
 
-  // Reconnect to the device
   ROS_DEBUG("Reconnecting to device");
   VnEnsure(vn100_connect(&imu_, port_.c_str(), baudrate_));
   ros::Duration(0.5).sleep();
   ROS_INFO("Connected to device at %s", port_.c_str());
 
-  // Check the new baudrate
   VnEnsure(vn100_getSerialBaudRate(&imu_, &old_baudrate));
   ROS_INFO("New serial baudrate: %u", old_baudrate);
 
@@ -180,7 +172,6 @@ void ImuVn100::Initialize() {
   ROS_INFO("Firmware version: %s", firmware_version_buffer);
 
   if (sync_out_rate_ > 0) {
-    // Configure the synchronization control register
     ROS_INFO("Set Synchronization Control Register (id:32).");
     VnEnsure(vn100_setSynchronizationControl(
         &imu_, SYNCINMODE_COUNT, SYNCINEDGE_RISING, 0, SYNCOUTMODE_IMU_START,
@@ -188,7 +179,6 @@ void ImuVn100::Initialize() {
         true));
 
     if (!binary_output_) {
-      // Configure the communication protocal control register
       ROS_INFO("Set Communication Protocal Control Register (id:30).");
       VnEnsure(vn100_setCommunicationProtocolControl(
           &imu_, SERIALCOUNT_SYNCOUT_COUNT, SERIALSTATUS_OFF, SPICOUNT_NONE,
@@ -196,45 +186,6 @@ void ImuVn100::Initialize() {
           true));
     }
   }
-
-  // Resume the device
-  // ROS_INFO("Resume the device");
-  // error_code = vn100_resumeAsyncOutputs(&imu, true);
-  // errorCodeParser(error_code);
-
-  // configure diagnostic updater
-  //  if (!pnh_.hasParam("diagnostic_period")) {
-  //    pnh_.setParam("diagnostic_period", 0.2);
-  //  }
-
-  //  updater.reset(new diagnostic_updater::Updater());
-  //  std::string hw_id =
-  //      std::string("vn100") + '-' + std::string(model_number_buffer);
-  //  updater->setHardwareID(hw_id);
-  // updater->add("diagnostic_info", this,
-  //    &ImuRosBase::updateDiagnosticInfo);
-
-  //  diagnostic_updater::FrequencyStatusParam freqParam(
-  //      &imu_rate_update_, &imu_rate_update_, 0.01, 10);
-  //  diagnostic_updater::TimeStampStatusParam timeParam(0, 0.5 / imu_rate_);
-  //  imu_diag.reset(new diagnostic_updater::TopicDiagnostic("imu", *updater,
-  //                                                         freqParam,
-  //                                                         timeParam));
-  //  if (enable_mag_)
-  //    mag_diag.reset(new diagnostic_updater::TopicDiagnostic(
-  //        "magnetic_field", *updater, freqParam, timeParam));
-  //  if (enable_pres_)
-  //    pres_diag.reset(new diagnostic_updater::TopicDiagnostic(
-  //        "pressure", *updater, freqParam, timeParam));
-  //  if (enable_temp_)
-  //    temp_diag.reset(new diagnostic_updater::TopicDiagnostic(
-  //        "temperature", *updater, freqParam, timeParam));
-
-  //  updater_ptr = updater;
-  //  imu_diag_ptr = imu_diag;
-  //  mag_diag_ptr = mag_diag;
-  //  pres_diag_ptr = pres_diag;
-  //  temp_diag_ptr = temp_diag;
 }
 
 void ImuVn100::Stream(bool async) {
@@ -246,9 +197,8 @@ void ImuVn100::Stream(bool async) {
 
     if (binary_output_) {
       // Set the binary output data type and data rate
-      // TODO: maybe need a rate_divisor member
       VnEnsure(vn100_setBinaryOutput1Configuration(
-          &imu_, BINARY_ASYNC_MODE_SERIAL_2, static_cast<int>(800 / imu_rate_),
+          &imu_, BINARY_ASYNC_MODE_SERIAL_2, kBaseImuRate / imu_rate_,
           BG1_QTN | BG1_IMU | BG1_MAG_PRES | BG1_SYNC_IN_CNT,
           // BG1_IMU,
           BG3_NONE, BG5_NONE, true));
@@ -284,44 +234,14 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
   imu_msg.header.stamp = ros::Time::now();
   imu_msg.header.frame_id = frame_id_;
 
-  // TODO: get the covariance for the estimated attitude
-  // imu.orientation.x = data->quaternion.x;
-  // imu.orientation.y = data->quaternion.y;
-  // imu.orientation.z = data->quaternion.z;
-  // imu.orientation.w = data->quaternion.w;
-
-  if (binary_output_) {
-    imu_msg.orientation.x = data.quaternion.x;
-    imu_msg.orientation.y = data.quaternion.y;
-    imu_msg.orientation.z = data.quaternion.z;
-    imu_msg.orientation.w = data.quaternion.w;
-    // NOTE: The IMU angular velocity and linear acceleration outputs are
-    // swapped
-    imu_msg.angular_velocity.x = data.accelerationUncompensated.c0;
-    imu_msg.angular_velocity.y = data.accelerationUncompensated.c1;
-    imu_msg.angular_velocity.z = data.accelerationUncompensated.c2;
-    imu_msg.linear_acceleration.x = data.angularRateUncompensated.c0;
-    imu_msg.linear_acceleration.y = data.angularRateUncompensated.c1;
-    imu_msg.linear_acceleration.z = data.angularRateUncompensated.c2;
-  } else {
-    imu_msg.linear_acceleration.x = data.acceleration.c0;
-    imu_msg.linear_acceleration.y = data.acceleration.c1;
-    imu_msg.linear_acceleration.z = data.acceleration.c2;
-    imu_msg.angular_velocity.x = data.angularRate.c0;
-    imu_msg.angular_velocity.y = data.angularRate.c1;
-    imu_msg.angular_velocity.z = data.angularRate.c2;
-  }
+  FillImuMessage(imu_msg, data, binary_output_);
   pub_imu_.publish(imu_msg);
-  //  imu_diag_ptr->tick(imu.header.stamp);
 
   if (enable_mag_) {
     sensor_msgs::MagneticField mag_msg;
     mag_msg.header = imu_msg.header;
-    mag_msg.magnetic_field.x = data.magnetic.c0;
-    mag_msg.magnetic_field.y = data.magnetic.c1;
-    mag_msg.magnetic_field.z = data.magnetic.c2;
+    RosVector3FromVnVector3(mag_msg.magnetic_field, data.magnetic);
     pub_mag_.publish(mag_msg);
-    //    mag_diag_ptr->tick(imu.header.stamp);
   }
 
   if (enable_pres_) {
@@ -329,7 +249,6 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
     pressure_msg.header = imu_msg.header;
     pressure_msg.fluid_pressure = data.pressure;
     pub_pres_.publish(pressure_msg);
-    //    pres_diag_ptr->tick(imu.header.stamp);
   }
 
   if (enable_temp_) {
@@ -337,27 +256,12 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
     temp_msg.header = imu_msg.header;
     temp_msg.temperature = data.temperature;
     pub_temp_.publish(temp_msg);
-    //    temp_diag_ptr->tick(imu.header.stamp);
   }
 
   if (sync_out_rate_ > 0) {
-    if (sync_info.sync_count() == -1) {
-      // Initialize the count if never set
-      sync_info.set_sync_count(data.syncInCnt);
-    } else {
-      // Record the time when the sync counter increases
-      if (sync_info.sync_count() != data.syncInCnt) {
-        sync_info.set_sync_time(imu_msg.header.stamp);
-        sync_info.set_sync_count(data.syncInCnt);
-      }
-    }
+    sync_info.Update(data.syncInCnt, imu_msg.header.stamp);
   }
 }
-
-// void ImuVn100::UpdateDiagnosticInfo(
-//    diagnostic_updater::DiagnosticStatusWrapper& stat) {
-//  // TODO: add diagnostic info
-//}
 
 void VnEnsure(const VnErrorCode& error_code) {
   if (error_code == VNERR_NO_ERROR) return;
@@ -385,6 +289,37 @@ void VnEnsure(const VnErrorCode& error_code) {
       throw std::runtime_error("VN: Permission denied");
     default:
       ROS_WARN("We give no fuck");
+  }
+}
+
+void RosVector3FromVnVector3(geometry_msgs::Vector3& ros_vec3,
+                             const VnVector3& vn_vec3) {
+  ros_vec3.x = vn_vec3.c0;
+  ros_vec3.y = vn_vec3.c1;
+  ros_vec3.z = vn_vec3.c2;
+}
+
+void RosQuaternionFromVnQuaternion(geometry_msgs::Quaternion& ros_quat,
+                                   const VnQuaternion& vn_quat) {
+  ros_quat.x = vn_quat.x;
+  ros_quat.y = vn_quat.y;
+  ros_quat.z = vn_quat.z;
+  ros_quat.w = vn_quat.w;
+}
+
+void FillImuMessage(sensor_msgs::Imu& imu_msg,
+                    const VnDeviceCompositeData& data, bool binary_output) {
+  if (binary_output) {
+    RosQuaternionFromVnQuaternion(imu_msg.orientation, data.quaternion);
+    // NOTE: The IMU angular velocity and linear acceleration outputs are
+    // swapped. And also why are they different?
+    RosVector3FromVnVector3(imu_msg.angular_velocity,
+                            data.accelerationUncompensated);
+    RosVector3FromVnVector3(imu_msg.linear_acceleration,
+                            data.angularRateUncompensated);
+  } else {
+    RosVector3FromVnVector3(imu_msg.linear_acceleration, data.acceleration);
+    RosVector3FromVnVector3(imu_msg.angular_velocity, data.angularRate);
   }
 }
 
