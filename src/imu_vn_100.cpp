@@ -18,8 +18,10 @@
 
 namespace imu_vn_100 {
 
-using diagnostic_updater::FrequencyStatusParam;
-using diagnostic_updater::TimeStampStatusParam;
+using sensor_msgs::Imu;
+using sensor_msgs::MagneticField;
+using sensor_msgs::FluidPressure;
+using sensor_msgs::Temperature;
 
 void RosVector3FromVnVector3(geometry_msgs::Vector3& ros_vec3,
                              const VnVector3& vn_vec3);
@@ -101,53 +103,21 @@ void ImuVn100::LoadParameters() {
   FixSyncOutRate();
 }
 
-void ImuVn100::CreatePublishers() {
-  // IMU data publisher
-  pub_imu_ = pnh_.advertise<sensor_msgs::Imu>("imu", 1);
-  if (enable_mag_) {
-    pub_mag_ = pnh_.advertise<sensor_msgs::MagneticField>("magnetic_field", 1);
-  }
-  if (enable_pres_) {
-    pub_pres_ = pnh_.advertise<sensor_msgs::FluidPressure>("pressure", 1);
-  }
-  if (enable_temp_) {
-    pub_temp_ = pnh_.advertise<sensor_msgs::Temperature>("temperature", 1);
-  }
-}
-
-void ImuVn100::CreateDiagnostics(const std::string& hardware_id) {
-  updater_.setHardwareID(hardware_id);
+void ImuVn100::CreatePubDiags() {
   imu_rate_double_ = imu_rate_;
-  FrequencyStatusParam freq_param(&imu_rate_double_, &imu_rate_double_, 0.01,
-                                  10);
-  TimeStampStatusParam time_param(0, 0.5 / imu_rate_double_);
-  diag_imu_ = boost::make_shared<TopicDiagnostic>("imu", updater_, freq_param,
-                                                  time_param);
+  pd_imu_.Create<Imu>(pnh_, "imu", updater_, imu_rate_double_);
   if (enable_mag_) {
-    diag_mag_ = boost::make_shared<TopicDiagnostic>("magnetic_field", updater_,
-                                                    freq_param, time_param);
+    pd_mag_.Create<MagneticField>(pnh_, "magnetic_field", updater_,
+                                  imu_rate_double_);
   }
   if (enable_pres_) {
-    diag_pres_ = boost::make_shared<TopicDiagnostic>("pressure", updater_,
-                                                     freq_param, time_param);
+    pd_pres_.Create<FluidPressure>(pnh_, "fluid_pressure", updater_,
+                                   imu_rate_double_);
   }
   if (enable_temp_) {
-    diag_temp_ = boost::make_shared<TopicDiagnostic>("temperature", updater_,
-                                                     freq_param, time_param);
+    pd_temp_.Create<Temperature>(pnh_, "temperature", updater_,
+                                 imu_rate_double_);
   }
-}
-
-void ImuVn100::Resume(bool need_reply) {
-  vn100_resumeAsyncOutputs(&imu_, need_reply);
-}
-
-void ImuVn100::Idle(bool need_reply) {
-  vn100_pauseAsyncOutputs(&imu_, need_reply);
-}
-
-void ImuVn100::Disconnect() {
-  vn100_reset(&imu_);
-  vn100_disconnect(&imu_);
 }
 
 void ImuVn100::Initialize() {
@@ -211,10 +181,10 @@ void ImuVn100::Initialize() {
     }
   }
 
+  CreatePubDiags();
   auto hardware_id = std::string("vn100-") + std::string(model_number_buffer) +
                      std::string(serial_number_buffer);
-  CreatePublishers();
-  CreateDiagnostics(hardware_id);
+  updater_.setHardwareID(hardware_id);
 }
 
 void ImuVn100::Stream(bool async) {
@@ -254,37 +224,47 @@ void ImuVn100::Stream(bool async) {
   VnEnsure(vn100_resumeAsyncOutputs(&imu_, true));
 }
 
+void ImuVn100::Resume(bool need_reply) {
+  vn100_resumeAsyncOutputs(&imu_, need_reply);
+}
+
+void ImuVn100::Idle(bool need_reply) {
+  vn100_pauseAsyncOutputs(&imu_, need_reply);
+}
+
+void ImuVn100::Disconnect() {
+  // TODO: why reset the device?
+  vn100_reset(&imu_);
+  vn100_disconnect(&imu_);
+}
+
 void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
   sensor_msgs::Imu imu_msg;
   imu_msg.header.stamp = ros::Time::now();
   imu_msg.header.frame_id = frame_id_;
 
   FillImuMessage(imu_msg, data, binary_output_);
-  pub_imu_.publish(imu_msg);
-  diag_imu_->tick(imu_msg.header.stamp);
+  pd_imu_.Publish(imu_msg);
 
   if (enable_mag_) {
     sensor_msgs::MagneticField mag_msg;
     mag_msg.header = imu_msg.header;
     RosVector3FromVnVector3(mag_msg.magnetic_field, data.magnetic);
-    pub_mag_.publish(mag_msg);
-    diag_mag_->tick(mag_msg.header.stamp);
+    pd_mag_.Publish(mag_msg);
   }
 
   if (enable_pres_) {
     sensor_msgs::FluidPressure pres_msg;
     pres_msg.header = imu_msg.header;
     pres_msg.fluid_pressure = data.pressure;
-    pub_pres_.publish(pres_msg);
-    diag_pres_->tick(pres_msg.header.stamp);
+    pd_pres_.Publish(pres_msg);
   }
 
   if (enable_temp_) {
     sensor_msgs::Temperature temp_msg;
     temp_msg.header = imu_msg.header;
     temp_msg.temperature = data.temperature;
-    pub_temp_.publish(temp_msg);
-    diag_temp_->tick(temp_msg.header.stamp);
+    pd_temp_.Publish(temp_msg);
   }
 
   if (sync_out_rate_ > 0) {

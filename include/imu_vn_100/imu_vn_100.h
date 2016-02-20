@@ -29,6 +29,12 @@
 
 namespace imu_vn_100 {
 
+using diagnostic_updater::Updater;
+using diagnostic_updater::TopicDiagnostic;
+using diagnostic_updater::FrequencyStatusParam;
+using diagnostic_updater::TimeStampStatusParam;
+using TopicDiagnosticPtr = boost::shared_ptr<TopicDiagnostic>;
+
 struct SyncInfo {
   unsigned sync_count;
   ros::Time sync_time;
@@ -52,10 +58,29 @@ struct SyncInfo {
   }
 };
 
-using diagnostic_updater::TopicDiagnostic;
-using TopicDiagnosticPtr = boost::shared_ptr<TopicDiagnostic>;
+struct PubDiag {
+  ros::Publisher pub;
+  TopicDiagnosticPtr diag;
+
+  template <typename MessageT>
+  void Create(ros::NodeHandle pnh, const std::string& topic, Updater& updater,
+              double& rate) {
+    pub = pnh.advertise<MessageT>(topic, 1);
+    FrequencyStatusParam freq_param(&rate, &rate, 0.01, 10);
+    TimeStampStatusParam time_param(0, 0.5 / rate);
+    diag = boost::make_shared<TopicDiagnostic>(topic, updater, freq_param,
+                                               time_param);
+  }
+
+  template <typename MessageT>
+  void Publish(const MessageT& message) {
+    pub.publish(message);
+    diag->tick(message.header.stamp);
+  }
+};
+
 /**
- * @brief ImuRosBase The class is a ros wrapper for the Imu class
+ * @brief ImuVn100 The class is a ros wrapper for the Imu class
  * @author Ke Sun
  */
 class ImuVn100 {
@@ -80,10 +105,6 @@ class ImuVn100 {
   void Disconnect();
 
   void Configure();
-
-  int SyncOutRate() const;
-
-  const ros::Time SyncTime() const;
 
  private:
   static constexpr int kBaseImuRate = 800;
@@ -112,16 +133,14 @@ class ImuVn100 {
   // Tracking the triggering signal
   SyncInfo sync_info;
 
-  ros::Publisher pub_imu_, pub_mag_, pub_pres_, pub_temp_;
-  diagnostic_updater::Updater updater_;
-  TopicDiagnosticPtr diag_imu_, diag_mag_, diag_pres_, diag_temp_;
+  Updater updater_;
+  PubDiag pd_imu_, pd_mag_, pd_pres_, pd_temp_;
 
   void FixImuRate();
   void FixSyncOutRate();
 
   void LoadParameters();
-  void CreatePublishers();
-  void CreateDiagnostics(const std::string& hardware_id);
+  void CreatePubDiags();
 };
 
 // Just don't like type that is ALL CAP
