@@ -100,7 +100,7 @@ class ImuVn100 {
   bool enable_mag_ = true;
   bool enable_pres_ = true;
   bool enable_temp_ = true;
-  bool use_binary_output_ = true;
+  bool binary_output_ = true;
 
   int sync_out_rate_ = kDefaultSyncOutRate;
   int sync_out_pulse_width_us_;

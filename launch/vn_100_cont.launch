@@ -8,6 +8,7 @@
     <arg name="imu_rate" default="100"/>
 
     <!-- Sync out settings -->
+    <!-- to disable this just set it to < 0 -->
     <arg name="sync_out_rate" default="20"/>
     <arg name="sync_out_pulse_width" default="1000000"/>
 

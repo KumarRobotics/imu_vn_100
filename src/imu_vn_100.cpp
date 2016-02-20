@@ -67,7 +67,7 @@ void ImuVn100::FixSyncOutRate() {
   // Check the sync out rate
   if (sync_out_rate_ > 0) {
     if (kBaseImuRate % sync_out_rate_ != 0) {
-      sync_out_rate_ = 800.0 / (800 / sync_out_rate_);
+      sync_out_rate_ = 800.0 / (kBaseImuRate / sync_out_rate_);
       ROS_INFO("Set SYNC_OUT_RATE to %d", sync_out_rate_);
     }
     sync_out_skip_cnt_ = (std::floor(800.0 / sync_out_rate_ + 0.5f)) - 1;
@@ -94,7 +94,7 @@ void ImuVn100::LoadParameters() {
   pnh_.param("sync_out_rate", sync_out_rate_, kDefaultSyncOutRate);
   pnh_.param("sync_out_pulse_width", sync_out_pulse_width_us_, 500000);
 
-  pnh_.param("use_binary_output", use_binary_output_, true);
+  pnh_.param("binary_output", binary_output_, true);
 
   FixImuRate();
   FixSyncOutRate();
@@ -187,7 +187,7 @@ void ImuVn100::Initialize() {
         SYNCOUTPOLARITY_POSITIVE, sync_out_skip_cnt_, sync_out_pulse_width_us_,
         true));
 
-    if (!use_binary_output_) {
+    if (!binary_output_) {
       // Configure the communication protocal control register
       ROS_INFO("Set Communication Protocal Control Register (id:30).");
       VnEnsure(vn100_setCommunicationProtocolControl(
@@ -244,7 +244,7 @@ void ImuVn100::Stream(bool async) {
   if (async) {
     VnEnsure(vn100_setAsynchronousDataOutputType(&imu_, VNASYNC_OFF, true));
 
-    if (use_binary_output_) {
+    if (binary_output_) {
       // Set the binary output data type and data rate
       // TODO: maybe need a rate_divisor member
       VnEnsure(vn100_setBinaryOutput1Configuration(
@@ -290,7 +290,7 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
   // imu.orientation.z = data->quaternion.z;
   // imu.orientation.w = data->quaternion.w;
 
-  if (use_binary_output_) {
+  if (binary_output_) {
     imu_msg.orientation.x = data.quaternion.x;
     imu_msg.orientation.y = data.quaternion.y;
     imu_msg.orientation.z = data.quaternion.z;
