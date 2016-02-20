@@ -35,29 +35,6 @@ using diagnostic_updater::FrequencyStatusParam;
 using diagnostic_updater::TimeStampStatusParam;
 using TopicDiagnosticPtr = boost::shared_ptr<TopicDiagnostic>;
 
-struct SyncInfo {
-  unsigned sync_count;
-  ros::Time sync_time;
-
-  SyncInfo() : sync_count(-1), sync_time(ros::Time::now()) {}
-
-  void Update(const unsigned sync_in_cnt, const ros::Time& time) {
-    sync_count = sync_in_cnt;
-    sync_time = time;
-    if (sync_count == -1) {
-      // Initialize the count if never set
-      sync_count = sync_in_cnt;
-      sync_time = time;
-    } else {
-      // Record the time when the sync counter increases
-      if (sync_count != sync_in_cnt) {
-        sync_count = sync_in_cnt;
-        sync_time = time;
-      }
-    }
-  }
-};
-
 struct PubDiag {
   ros::Publisher pub;
   TopicDiagnosticPtr diag;
@@ -85,6 +62,10 @@ struct PubDiag {
  */
 class ImuVn100 {
  public:
+  static constexpr int kBaseImuRate = 800;
+  static constexpr int kDefaultImuRate = 100;
+  static constexpr int kDefaultSyncOutRate = 20;
+
   explicit ImuVn100(const ros::NodeHandle& pnh);
   ImuVn100(const ImuVn100&) = delete;
   ImuVn100& operator=(const ImuVn100&) = delete;
@@ -106,11 +87,21 @@ class ImuVn100 {
 
   void Configure();
 
- private:
-  static constexpr int kBaseImuRate = 800;
-  static constexpr int kDefaultImuRate = 100;
-  static constexpr int kDefaultSyncOutRate = 20;
+  struct SyncInfo {
+    unsigned count = -1;
+    ros::Time time;
 
+    int rate = -1;
+    int pulse_width_us = 500000;
+    int skip_count = 0;
+
+    void Update(const unsigned sync_count, const ros::Time& sync_time);
+    void FixSyncRate();
+  };
+
+  const SyncInfo sync_info() const { return sync_info_; }
+
+ private:
   ros::NodeHandle pnh_;
   Vn100 imu_;
 
@@ -126,19 +117,12 @@ class ImuVn100 {
   bool enable_temp_ = true;
   bool binary_output_ = true;
 
-  int sync_out_rate_ = kDefaultSyncOutRate;
-  int sync_out_pulse_width_us_;
-  int sync_out_skip_cnt_;
-
-  // Tracking the triggering signal
-  SyncInfo sync_info;
+  SyncInfo sync_info_;
 
   Updater updater_;
   PubDiag pd_imu_, pd_mag_, pd_pres_, pd_temp_;
 
   void FixImuRate();
-  void FixSyncOutRate();
-
   void LoadParameters();
   void CreatePubDiags();
 };

@@ -18,6 +18,9 @@
 
 namespace imu_vn_100 {
 
+// LESS HACK IS STILL HACK
+ImuVn100* evil_global_;
+
 using sensor_msgs::Imu;
 using sensor_msgs::MagneticField;
 using sensor_msgs::FluidPressure;
@@ -30,23 +33,54 @@ void RosQuaternionFromVnQuaternion(geometry_msgs::Quaternion& ros_quat,
 void FillImuMessage(sensor_msgs::Imu& imu_msg,
                     const VnDeviceCompositeData& data, bool binary_output);
 
-// LESS HACK IS STILL HACK
-ImuVn100* evil_global_;
+void AsyncListener(void* sender, VnDeviceCompositeData* data) {
+  evil_global_->PublishData(*data);
+}
 
 constexpr int ImuVn100::kBaseImuRate;
 constexpr int ImuVn100::kDefaultImuRate;
 constexpr int ImuVn100::kDefaultSyncOutRate;
 
-void AsyncListener(void* sender, VnDeviceCompositeData* data) {
-  evil_global_->PublishData(*data);
+void ImuVn100::SyncInfo::Update(const unsigned sync_count,
+                                const ros::Time& sync_time) {
+  if (rate <= 0) return;
+
+  count = sync_count;
+  time = sync_time;
+  if (count == -1) {
+    // Initialize the count if never set
+    count = sync_count;
+    time = sync_time;
+  } else {
+    // Record the time when the sync counter increases
+    if (count != sync_count) {
+      count = sync_count;
+      time = sync_time;
+    }
+  }
+}
+
+void ImuVn100::SyncInfo::FixSyncRate() {
+  // Check the sync out rate
+  if (rate > 0) {
+    if (ImuVn100::kBaseImuRate % rate != 0) {
+      rate = 800.0 / (ImuVn100::kBaseImuRate / rate);
+      ROS_INFO("Set SYNC_OUT_RATE to %d", rate);
+    }
+    skip_count = (std::floor(800.0 / skip_count + 0.5f)) - 1;
+
+    if (pulse_width_us > 10000000) {
+      ROS_INFO("Sync out pulse with is over 10ms. Reset to 0.5ms");
+      pulse_width_us = 500000;
+    }
+  }
 }
 
 ImuVn100::ImuVn100(const ros::NodeHandle& pnh)
     : pnh_(pnh),
       port_(std::string("/dev/ttyUSB0")),
       baudrate_(921600),
-      frame_id_(std::string("imu")),
-      sync_out_pulse_width_us_(500000) {
+      frame_id_(std::string("imu")) {
   Initialize();
   evil_global_ = this;
 }
@@ -68,22 +102,6 @@ void ImuVn100::FixImuRate() {
   }
 }
 
-void ImuVn100::FixSyncOutRate() {
-  // Check the sync out rate
-  if (sync_out_rate_ > 0) {
-    if (kBaseImuRate % sync_out_rate_ != 0) {
-      sync_out_rate_ = 800.0 / (kBaseImuRate / sync_out_rate_);
-      ROS_INFO("Set SYNC_OUT_RATE to %d", sync_out_rate_);
-    }
-    sync_out_skip_cnt_ = (std::floor(800.0 / sync_out_rate_ + 0.5f)) - 1;
-
-    if (sync_out_pulse_width_us_ > 10000000) {
-      ROS_INFO("Sync out pulse with is over 10ms. Reset to 0.5ms");
-      sync_out_pulse_width_us_ = 500000;
-    }
-  }
-}
-
 void ImuVn100::LoadParameters() {
   pnh_.param<std::string>("port", port_, std::string("/dev/ttyUSB0"));
   pnh_.param<std::string>("frame_id", frame_id_, pnh_.getNamespace());
@@ -94,13 +112,13 @@ void ImuVn100::LoadParameters() {
   pnh_.param("enable_pres", enable_pres_, true);
   pnh_.param("enable_temp", enable_temp_, true);
 
-  pnh_.param("sync_out_rate", sync_out_rate_, kDefaultSyncOutRate);
-  pnh_.param("sync_out_pulse_width", sync_out_pulse_width_us_, 500000);
+  pnh_.param("sync_out_rate", sync_info_.rate, kDefaultSyncOutRate);
+  pnh_.param("sync_out_pulse_width", sync_info_.pulse_width_us, 500000);
 
   pnh_.param("binary_output", binary_output_, true);
 
   FixImuRate();
-  FixSyncOutRate();
+  sync_info_.FixSyncRate();
 }
 
 void ImuVn100::CreatePubDiags() {
@@ -165,12 +183,12 @@ void ImuVn100::Initialize() {
   VnEnsure(vn100_getFirmwareVersion(&imu_, firmware_version_buffer, 30));
   ROS_INFO("Firmware version: %s", firmware_version_buffer);
 
-  if (sync_out_rate_ > 0) {
+  if (sync_info_.rate > 0) {
     ROS_INFO("Set Synchronization Control Register (id:32).");
     VnEnsure(vn100_setSynchronizationControl(
         &imu_, SYNCINMODE_COUNT, SYNCINEDGE_RISING, 0, SYNCOUTMODE_IMU_START,
-        SYNCOUTPOLARITY_POSITIVE, sync_out_skip_cnt_, sync_out_pulse_width_us_,
-        true));
+        SYNCOUTPOLARITY_POSITIVE, sync_info_.skip_count,
+        sync_info_.pulse_width_us, true));
 
     if (!binary_output_) {
       ROS_INFO("Set Communication Protocal Control Register (id:30).");
@@ -267,9 +285,7 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
     pd_temp_.Publish(temp_msg);
   }
 
-  if (sync_out_rate_ > 0) {
-    sync_info.Update(data.syncInCnt, imu_msg.header.stamp);
-  }
+  sync_info_.Update(data.syncInCnt, imu_msg.header.stamp);
 
   updater_.update();
 }
