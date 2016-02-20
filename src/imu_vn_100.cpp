@@ -18,6 +18,9 @@
 
 namespace imu_vn_100 {
 
+using diagnostic_updater::FrequencyStatusParam;
+using diagnostic_updater::TimeStampStatusParam;
+
 void RosVector3FromVnVector3(geometry_msgs::Vector3& ros_vec3,
                              const VnVector3& vn_vec3);
 void RosQuaternionFromVnQuaternion(geometry_msgs::Quaternion& ros_quat,
@@ -112,6 +115,28 @@ void ImuVn100::CreatePublishers() {
   }
 }
 
+void ImuVn100::CreateDiagnostics(const std::string& hardware_id) {
+  updater_.setHardwareID(hardware_id);
+  imu_rate_double_ = imu_rate_;
+  FrequencyStatusParam freq_param(&imu_rate_double_, &imu_rate_double_, 0.01,
+                                  10);
+  TimeStampStatusParam time_param(0, 0.5 / imu_rate_double_);
+  diag_imu_ = boost::make_shared<TopicDiagnostic>("imu", updater_, freq_param,
+                                                  time_param);
+  if (enable_mag_) {
+    diag_mag_ = boost::make_shared<TopicDiagnostic>("magnetic_field", updater_,
+                                                    freq_param, time_param);
+  }
+  if (enable_pres_) {
+    diag_pres_ = boost::make_shared<TopicDiagnostic>("pressure", updater_,
+                                                     freq_param, time_param);
+  }
+  if (enable_temp_) {
+    diag_temp_ = boost::make_shared<TopicDiagnostic>("temperature", updater_,
+                                                     freq_param, time_param);
+  }
+}
+
 void ImuVn100::Resume(bool need_reply) {
   vn100_resumeAsyncOutputs(&imu_, need_reply);
 }
@@ -127,7 +152,6 @@ void ImuVn100::Disconnect() {
 
 void ImuVn100::Initialize() {
   LoadParameters();
-  CreatePublishers();
 
   ROS_DEBUG("Connecting to device");
   VnEnsure(vn100_connect(&imu_, port_.c_str(), 115200));
@@ -186,6 +210,11 @@ void ImuVn100::Initialize() {
           true));
     }
   }
+
+  auto hardware_id = std::string("vn100-") + std::string(model_number_buffer) +
+                     std::string(serial_number_buffer);
+  CreatePublishers();
+  CreateDiagnostics(hardware_id);
 }
 
 void ImuVn100::Stream(bool async) {
@@ -202,10 +231,6 @@ void ImuVn100::Stream(bool async) {
           BG1_QTN | BG1_IMU | BG1_MAG_PRES | BG1_SYNC_IN_CNT,
           // BG1_IMU,
           BG3_NONE, BG5_NONE, true));
-      // unsigned int base_freq = 0;
-      // error_code = vn100_getAsynchronousDataOutputFrequency(
-      //  &imu, &base_freq);
-      // errorCodeParser(error_code);
     } else {
       // Set the ASCII output data type and data rate
       // ROS_INFO("Configure the output data type and frequency (id: 6 & 7)");
@@ -219,7 +244,7 @@ void ImuVn100::Stream(bool async) {
     VnEnsure(vn100_setAsynchronousDataOutputFrequency(&imu_, imu_rate_, true));
   } else {
     // Mute the stream
-    ROS_INFO("Mute the device");
+    ROS_DEBUG("Mute the device");
     VnEnsure(vn100_setAsynchronousDataOutputType(&imu_, VNASYNC_OFF, true));
     // Remove the callback function for new data event
     VnEnsure(vn100_unregisterAsyncDataReceivedListener(&imu_, &AsyncListener));
@@ -236,19 +261,22 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
 
   FillImuMessage(imu_msg, data, binary_output_);
   pub_imu_.publish(imu_msg);
+  diag_imu_->tick(imu_msg.header.stamp);
 
   if (enable_mag_) {
     sensor_msgs::MagneticField mag_msg;
     mag_msg.header = imu_msg.header;
     RosVector3FromVnVector3(mag_msg.magnetic_field, data.magnetic);
     pub_mag_.publish(mag_msg);
+    diag_mag_->tick(mag_msg.header.stamp);
   }
 
   if (enable_pres_) {
-    sensor_msgs::FluidPressure pressure_msg;
-    pressure_msg.header = imu_msg.header;
-    pressure_msg.fluid_pressure = data.pressure;
-    pub_pres_.publish(pressure_msg);
+    sensor_msgs::FluidPressure pres_msg;
+    pres_msg.header = imu_msg.header;
+    pres_msg.fluid_pressure = data.pressure;
+    pub_pres_.publish(pres_msg);
+    diag_pres_->tick(pres_msg.header.stamp);
   }
 
   if (enable_temp_) {
@@ -256,11 +284,14 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
     temp_msg.header = imu_msg.header;
     temp_msg.temperature = data.temperature;
     pub_temp_.publish(temp_msg);
+    diag_temp_->tick(temp_msg.header.stamp);
   }
 
   if (sync_out_rate_ > 0) {
     sync_info.Update(data.syncInCnt, imu_msg.header.stamp);
   }
+
+  updater_.update();
 }
 
 void VnEnsure(const VnErrorCode& error_code) {

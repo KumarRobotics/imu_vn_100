@@ -52,6 +52,8 @@ struct SyncInfo {
   }
 };
 
+using diagnostic_updater::TopicDiagnostic;
+using TopicDiagnosticPtr = boost::shared_ptr<TopicDiagnostic>;
 /**
  * @brief ImuRosBase The class is a ros wrapper for the Imu class
  * @author Ke Sun
@@ -64,10 +66,7 @@ class ImuVn100 {
   ~ImuVn100();
 
   void Initialize();
-  /**
-   * @brief enableIMUStream Enable or disable IMU stream
-   * @param enabled If ture, the continuous stream is enabled
-   */
+
   void Stream(bool async = true);
 
   void PublishData(const VnDeviceCompositeData& data);
@@ -82,9 +81,9 @@ class ImuVn100 {
 
   void Configure();
 
-  int sync_out_rate() const;
+  int SyncOutRate() const;
 
-  const ros::Time sync_time() const;
+  const ros::Time SyncTime() const;
 
  private:
   static constexpr int kBaseImuRate = 800;
@@ -98,7 +97,7 @@ class ImuVn100 {
   std::string port_;
   int baudrate_ = 921600;
   int imu_rate_ = kDefaultImuRate;
-  double imu_rate_update_ = kDefaultImuRate;
+  double imu_rate_double_ = kDefaultImuRate;
   std::string frame_id_;
 
   bool enable_mag_ = true;
@@ -113,20 +112,16 @@ class ImuVn100 {
   // Tracking the triggering signal
   SyncInfo sync_info;
 
-  // Publishers
-  ros::Publisher pub_imu_;
-  ros::Publisher pub_mag_;
-  ros::Publisher pub_pres_;
-  ros::Publisher pub_temp_;
+  ros::Publisher pub_imu_, pub_mag_, pub_pres_, pub_temp_;
+  diagnostic_updater::Updater updater_;
+  TopicDiagnosticPtr diag_imu_, diag_mag_, diag_pres_, diag_temp_;
 
   void FixImuRate();
   void FixSyncOutRate();
 
   void LoadParameters();
   void CreatePublishers();
-
-  //  void UpdateDiagnosticInfo(diagnostic_updater::DiagnosticStatusWrapper&
-  //  stat);
+  void CreateDiagnostics(const std::string& hardware_id);
 };
 
 // Just don't like type that is ALL CAP
