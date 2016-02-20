@@ -12,18 +12,18 @@
     <arg name="sync_out_pulse_width" default="1000000"/>
 
     <!-- Ros Topic settings -->
-    <arg name="enable_magnetic_field" default="true"/>
-    <arg name="enable_pressure" default="true"/>
-    <arg name="enable_temperature" default="true"/>
+    <arg name="enable_mag" default="true"/>
+    <arg name="enable_pres" default="true"/>
+    <arg name="enable_temp" default="true"/>
 
     <node pkg="imu_vn_100" name="$(arg imu)" type="imu_vn_100_cont_node" output="$(arg output)">
         <param name="port" type="string" value="$(arg port)" />
         <param name="baudrate" type="int" value="$(arg baudrate)" />
         <param name="frame_id" type="string" value="$(arg frame_id)"/>
         <param name="imu_rate" type="int" value="$(arg imu_rate)" />
-        <param name="enable_magnetic_field" type="bool" value="$(arg enable_magnetic_field)" />
-        <param name="enable_pressure" type="bool" value="$(arg enable_pressure)" />
-        <param name="enable_temperature" type="bool" value="$(arg enable_temperature)" />
+        <param name="enable_mag" type="bool" value="$(arg enable_mag)" />
+        <param name="enable_pres" type="bool" value="$(arg enable_pres)" />
+        <param name="enable_temp" type="bool" value="$(arg enable_temp)" />
         <param name="sync_out_rate" type="int" value="$(arg sync_out_rate)" />
         <param name="sync_out_pulse_width" type="int" value="$(arg sync_out_pulse_width)" />
     </node>

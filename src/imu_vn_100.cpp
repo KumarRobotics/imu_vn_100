@@ -134,12 +134,16 @@ void asyncDataListener(void* sender, VnDeviceCompositeData* data) {
   return;
 }
 
+constexpr int ImuVn100::kBaseImuRate;
+constexpr int ImuVn100::kDefaultImuRate;
+constexpr int ImuVn100::kDefaultSyncOutRate;
+
 ImuVn100::ImuVn100(const NodeHandle& pnh)
     : pnh_(pnh),
       port_(string("/dev/ttyUSB0")),
       baudrate_(921600),
       frame_id_(string("imu")),
-      sync_out_pulse_width(500000) {
+      sync_out_pulse_width_us(500000) {
   Initialize();
 }
 
@@ -147,62 +151,62 @@ ImuVn100::~ImuVn100() { Disconnect(); }
 
 void ImuVn100::FixImuRate() {
   if (imu_rate_ <= 0) {
-    ROS_WARN("Imu rate %d is < 0. Set to %d", imu_rate_, kImuDefaultRate);
-    imu_rate_ = kImuDefaultRate;
+    ROS_WARN("Imu rate %d is < 0. Set to %d", imu_rate_, kDefaultImuRate);
+    imu_rate_ = kDefaultImuRate;
   }
 
-  // This is a wrong implementation
-  if (kImuBaseRate % imu_rate_ != 0) {
+  if (kBaseImuRate % imu_rate_ != 0) {
     int imu_rate_old = imu_rate_;
     // TODO: THIS DOENS'T DO WHAT'S INTENDED
-    imu_rate_ = kImuBaseRate / (kImuBaseRate / imu_rate_old);
+    imu_rate_ = kBaseImuRate / (kBaseImuRate / imu_rate_old);
     ROS_WARN("Imu rate %d cannot evenly decimate base rate %d, reset to %d",
-             imu_rate_old, kImuBaseRate, imu_rate_);
+             imu_rate_old, kBaseImuRate, imu_rate_);
   }
 }
 
-void ImuVn100::FixSyncOutRate() {}
-
-void ImuVn100::LoadParameters() {
-  pnh_.param<string>("port", port_, std::string("/dev/ttyUSB0"));
-  pnh_.param<string>("frame_id", frame_id_, pnh_.getNamespace());
-  pnh_.param("baudrate", baudrate_, 115200);
-  pnh_.param("imu_rate", imu_rate_, 100);
-
-  pnh_.param("enable_magnetic_field", enable_mag, true);
-  pnh_.param("enable_pressure", enable_pres, true);
-  pnh_.param("enable_temperature", enable_temp, true);
-
-  pnh_.param("sync_out_rate", sync_out_rate_, 30);
-  pnh_.param("sync_out_pulse_width", sync_out_pulse_width, 500000);
-
-  pnh_.param("use_binary_output", use_binary_output, true);
-
-  frame_id_ptr = &frame_id_;
-  enable_mag_ptr = &enable_mag;
-  enable_pres_ptr = &enable_pres;
-  enable_temp_ptr = &enable_temp;
-  enable_sync_out_ptr = &sync_out_rate_;
-  use_binary_output_ptr = &use_binary_output;
-  sync_info_ptr = &sync_info;
-
-  FixImuRate();
-
+void ImuVn100::FixSyncOutRate() {
   // Check the sync out rate
   if (sync_out_rate_ > 0) {
     act_sync_out_rate = sync_out_rate_;
-    if (800 % sync_out_rate_ != 0) {
+    if (kBaseImuRate % sync_out_rate_ != 0) {
       act_sync_out_rate = 800.0 / (800 / sync_out_rate_);
       ROS_INFO("Set SYNC_OUT_RATE to %f", act_sync_out_rate);
     }
     sync_out_skip_count =
         static_cast<int>(floor(800.0 / act_sync_out_rate + 0.5f)) - 1;
 
-    if (sync_out_pulse_width > 10000000) {
+    if (sync_out_pulse_width_us > 10000000) {
       ROS_INFO("Sync out pulse with is over 10ms. Reset to 0.5ms");
-      sync_out_pulse_width = 500000;
+      sync_out_pulse_width_us = 500000;
     }
   }
+}
+
+void ImuVn100::LoadParameters() {
+  pnh_.param<string>("port", port_, std::string("/dev/ttyUSB0"));
+  pnh_.param<string>("frame_id", frame_id_, pnh_.getNamespace());
+  pnh_.param("baudrate", baudrate_, 115200);
+  pnh_.param("imu_rate", imu_rate_, kDefaultImuRate);
+
+  pnh_.param("enable_mag", enable_mag_, true);
+  pnh_.param("enable_pres", enable_pres_, true);
+  pnh_.param("enable_temp", enable_temp_, true);
+
+  pnh_.param("sync_out_rate", sync_out_rate_, kDefaultSyncOutRate);
+  pnh_.param("sync_out_pulse_width", sync_out_pulse_width_us, 500000);
+
+  pnh_.param("use_binary_output", use_binary_output_, true);
+
+  frame_id_ptr = &frame_id_;
+  enable_mag_ptr = &enable_mag_;
+  enable_pres_ptr = &enable_pres_;
+  enable_temp_ptr = &enable_temp_;
+  enable_sync_out_ptr = &sync_out_rate_;
+  use_binary_output_ptr = &use_binary_output_;
+  sync_info_ptr = &sync_info;
+
+  FixImuRate();
+  FixSyncOutRate();
 }
 
 void ImuVn100::CreatePublishers() {
@@ -210,17 +214,17 @@ void ImuVn100::CreatePublishers() {
   pub_imu_ = pnh_.advertise<sensor_msgs::Imu>("imu", 1);
   pub_imu_ptr = &pub_imu_;
   // Magnetic field data publisher
-  if (enable_mag) {
+  if (enable_mag_) {
     pub_mag_ = pnh_.advertise<sensor_msgs::MagneticField>("magnetic_field", 1);
     pub_mag_ptr = &pub_mag_;
   }
   // Pressure data publisher
-  if (enable_pres) {
+  if (enable_pres_) {
     pub_pres_ = pnh_.advertise<sensor_msgs::FluidPressure>("pressure", 1);
     pub_pres_ptr = &pub_pres_;
   }
   // Temperature data publisher
-  if (enable_temp) {
+  if (enable_temp_) {
     pub_temp_ = pnh_.advertise<sensor_msgs::Temperature>("temperature", 1);
     pub_temp_ptr = &pub_temp_;
   }
@@ -348,11 +352,11 @@ bool ImuVn100::Initialize() {
     ROS_INFO("Set Synchronization Control Register (id:32).");
     error_code = vn100_setSynchronizationControl(
         &imu_, SYNCINMODE_COUNT, SYNCINEDGE_RISING, 0, SYNCOUTMODE_IMU_START,
-        SYNCOUTPOLARITY_POSITIVE, sync_out_skip_count, sync_out_pulse_width,
+        SYNCOUTPOLARITY_POSITIVE, sync_out_skip_count, sync_out_pulse_width_us,
         true);
     ErrorCodeParser(error_code);
 
-    if (!use_binary_output) {
+    if (!use_binary_output_) {
       // Configure the communication protocal control register
       ROS_INFO("Set Communication Protocal Control Register (id:30).");
       error_code = vn100_setCommunicationProtocolControl(
@@ -383,13 +387,13 @@ bool ImuVn100::Initialize() {
   diagnostic_updater::TimeStampStatusParam timeParam(0, 0.5 / imu_rate_);
   imu_diag.reset(new diagnostic_updater::TopicDiagnostic("imu", *updater,
                                                          freqParam, timeParam));
-  if (enable_mag)
+  if (enable_mag_)
     mag_diag.reset(new diagnostic_updater::TopicDiagnostic(
         "magnetic_field", *updater, freqParam, timeParam));
-  if (enable_pres)
+  if (enable_pres_)
     pres_diag.reset(new diagnostic_updater::TopicDiagnostic(
         "pressure", *updater, freqParam, timeParam));
-  if (enable_temp)
+  if (enable_temp_)
     temp_diag.reset(new diagnostic_updater::TopicDiagnostic(
         "temperature", *updater, freqParam, timeParam));
 
@@ -413,7 +417,7 @@ void ImuVn100::Stream(bool async) {
     error_code = vn100_setAsynchronousDataOutputType(&imu_, VNASYNC_OFF, true);
     ErrorCodeParser(error_code);
 
-    if (use_binary_output) {
+    if (use_binary_output_) {
       // Set the binary output data type and data rate
       error_code = vn100_setBinaryOutput1Configuration(
           &imu_, BINARY_ASYNC_MODE_SERIAL_2, static_cast<int>(800 / imu_rate_),
@@ -458,7 +462,7 @@ void ImuVn100::Stream(bool async) {
   ErrorCodeParser(error_code);
 }
 
-void ImuVn100::updateDiagnosticInfo(
+void ImuVn100::UpdateDiagnosticInfo(
     diagnostic_updater::DiagnosticStatusWrapper& stat) {
   // TODO: add diagnostic info
 }

@@ -101,28 +101,29 @@ class ImuVn100 {
   ros::Time getSyncTime() { return sync_info.sync_time(); }
 
  private:
-  static constexpr int kImuBaseRate = 800;
-  static constexpr int kImuDefaultRate = 100;
+  static constexpr int kBaseImuRate = 800;
+  static constexpr int kDefaultImuRate = 100;
+  static constexpr int kDefaultSyncOutRate = 20;
+
+  ros::NodeHandle pnh_;
+  Vn100 imu_;
 
   // Settings
   std::string port_;
   int baudrate_ = 921600;
-  int imu_rate_ = kImuDefaultRate;
-  double imu_rate_update_ = kImuDefaultRate;
+  int imu_rate_ = kDefaultImuRate;
+  double imu_rate_update_ = kDefaultImuRate;
   std::string frame_id_;
 
-  bool enable_mag = true;
-  bool enable_pres = true;
-  bool enable_temp = true;
-  bool use_binary_output = true;
+  bool enable_mag_ = true;
+  bool enable_pres_ = true;
+  bool enable_temp_ = true;
+  bool use_binary_output_ = true;
 
-  int sync_out_rate_ = -1;
-  int sync_out_pulse_width;
+  int sync_out_rate_ = kDefaultSyncOutRate;
+  int sync_out_pulse_width_us;
   float act_sync_out_rate;
   int sync_out_skip_count;
-
-  ros::NodeHandle pnh_;
-  Vn100 imu_;
 
   // Tracking the triggering signal
   SyncInfo sync_info;
@@ -147,10 +148,8 @@ class ImuVn100 {
   void CreatePublishers();
   void ErrorCodeParser(const VN_ERROR_CODE& error_code);
 
-  // Publish IMU msgs
   void PublishData();
-  // Callback function for adding meta info in the diag msgs
-  void updateDiagnosticInfo(diagnostic_updater::DiagnosticStatusWrapper& stat);
+  void UpdateDiagnosticInfo(diagnostic_updater::DiagnosticStatusWrapper& stat);
 };
 
 }  // namespace imu_vn_100
