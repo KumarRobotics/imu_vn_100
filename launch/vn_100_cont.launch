@@ -8,7 +8,7 @@
     <arg name="imu_rate" default="100"/>
 
     <!-- Sync out settings -->
-    <arg name="sync_out_rate" default="40"/>
+    <arg name="sync_out_rate" default="20"/>
     <arg name="sync_out_pulse_width" default="1000000"/>
 
     <!-- Ros Topic settings -->

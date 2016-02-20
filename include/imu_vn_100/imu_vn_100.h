@@ -79,7 +79,7 @@ class ImuVn100 {
   ImuVn100& operator=(const ImuVn100&) = delete;
   ~ImuVn100();
 
-  bool Initialize();
+  void Initialize();
   /**
    * @brief enableIMUStream Enable or disable IMU stream
    * @param enabled If ture, the continuous stream is enabled
@@ -93,6 +93,8 @@ class ImuVn100 {
   void Resume(bool need_reply = true);
 
   void Disconnect();
+
+  void Configure();
 
   float getSyncRate() { return act_sync_out_rate; }
 
@@ -135,22 +137,26 @@ class ImuVn100 {
   ros::Publisher pub_temp_;
 
   // diagnostic_updater resources
-  boost::shared_ptr<diagnostic_updater::Updater> updater;
-  boost::shared_ptr<diagnostic_updater::TopicDiagnostic> imu_diag;
-  boost::shared_ptr<diagnostic_updater::TopicDiagnostic> mag_diag;
-  boost::shared_ptr<diagnostic_updater::TopicDiagnostic> pres_diag;
-  boost::shared_ptr<diagnostic_updater::TopicDiagnostic> temp_diag;
+  //  boost::shared_ptr<diagnostic_updater::Updater> updater;
+  //  boost::shared_ptr<diagnostic_updater::TopicDiagnostic> imu_diag;
+  //  boost::shared_ptr<diagnostic_updater::TopicDiagnostic> mag_diag;
+  //  boost::shared_ptr<diagnostic_updater::TopicDiagnostic> pres_diag;
+  //  boost::shared_ptr<diagnostic_updater::TopicDiagnostic> temp_diag;
 
   void FixImuRate();
   void FixSyncOutRate();
 
   void LoadParameters();
   void CreatePublishers();
-  void ErrorCodeParser(const VN_ERROR_CODE& error_code);
 
   void PublishData();
-  void UpdateDiagnosticInfo(diagnostic_updater::DiagnosticStatusWrapper& stat);
+  //  void UpdateDiagnosticInfo(diagnostic_updater::DiagnosticStatusWrapper&
+  //  stat);
 };
+
+// Just don't like type that is ALL CAP
+using VnErrorCode = VN_ERROR_CODE;
+void VnEnsure(const VnErrorCode& error_code);
 
 }  // namespace imu_vn_100
 
