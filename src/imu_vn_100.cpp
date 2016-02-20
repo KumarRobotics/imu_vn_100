@@ -18,6 +18,8 @@
 
 namespace imu_vn_100 {
 
+ImuVn100* hack_;
+
 // TODO: This is hacky!
 //    The official VN100 driver requires a
 //    plain C callback function, which cannot
@@ -46,7 +48,10 @@ ros::Publisher* pub_temp_ptr;
 
 // Callback function for new data event
 // in the continous stream mode
-void asyncDataListener(void* sender, VnDeviceCompositeData* data) {
+
+void AsyncListener(void* sender, VnDeviceCompositeData* data) {
+  hack_->PublishData(*data);
+  /*
   sensor_msgs::Imu imu;
   imu.header.stamp = ros::Time::now();
   imu.header.frame_id = *frame_id_ptr;
@@ -113,12 +118,12 @@ void asyncDataListener(void* sender, VnDeviceCompositeData* data) {
   if (*enable_sync_out_ptr > 0) {
     if (sync_info_ptr->sync_count() == -1) {
       // Initialize the count if never set
-      sync_info_ptr->setSyncCount(data->syncInCnt);
+      sync_info_ptr->set_sync_count(data->syncInCnt);
     } else {
       // Record the time when the sync counter increases
       if (sync_info_ptr->sync_count() != data->syncInCnt) {
-        sync_info_ptr->setSyncTime(imu.header.stamp);
-        sync_info_ptr->setSyncCount(data->syncInCnt);
+        sync_info_ptr->set_sync_time(imu.header.stamp);
+        sync_info_ptr->set_sync_count(data->syncInCnt);
       }
     }
   }
@@ -127,8 +132,7 @@ void asyncDataListener(void* sender, VnDeviceCompositeData* data) {
 
   // Update diagnostic info
   //  updater_ptr->update();
-
-  return;
+  */
 }
 
 constexpr int ImuVn100::kBaseImuRate;
@@ -142,6 +146,7 @@ ImuVn100::ImuVn100(const ros::NodeHandle& pnh)
       frame_id_(std::string("imu")),
       sync_out_pulse_width_us(500000) {
   Initialize();
+  hack_ = this;
 }
 
 ImuVn100::~ImuVn100() { Disconnect(); }
@@ -359,6 +364,7 @@ void ImuVn100::Stream(bool async) {
 
     if (use_binary_output_) {
       // Set the binary output data type and data rate
+      // TODO: maybe need a rate_divisor member
       VnEnsure(vn100_setBinaryOutput1Configuration(
           &imu_, BINARY_ASYNC_MODE_SERIAL_2, static_cast<int>(800 / imu_rate_),
           BG1_QTN | BG1_IMU | BG1_MAG_PRES | BG1_SYNC_IN_CNT,
@@ -375,8 +381,7 @@ void ImuVn100::Stream(bool async) {
     }
 
     // Add a callback function for new data event
-    VnEnsure(
-        vn100_registerAsyncDataReceivedListener(&imu_, &asyncDataListener));
+    VnEnsure(vn100_registerAsyncDataReceivedListener(&imu_, &AsyncListener));
 
     ROS_INFO("Setting IMU rate to %d", imu_rate_);
     VnEnsure(vn100_setAsynchronousDataOutputFrequency(&imu_, imu_rate_, true));
@@ -385,12 +390,86 @@ void ImuVn100::Stream(bool async) {
     ROS_INFO("Mute the device");
     VnEnsure(vn100_setAsynchronousDataOutputType(&imu_, VNASYNC_OFF, true));
     // Remove the callback function for new data event
-    VnEnsure(
-        vn100_unregisterAsyncDataReceivedListener(&imu_, &asyncDataListener));
+    VnEnsure(vn100_unregisterAsyncDataReceivedListener(&imu_, &AsyncListener));
   }
 
   // Resume the device
   VnEnsure(vn100_resumeAsyncOutputs(&imu_, true));
+}
+
+void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
+  sensor_msgs::Imu imu_msg;
+  imu_msg.header.stamp = ros::Time::now();
+  imu_msg.header.frame_id = frame_id_;
+
+  // TODO: get the covariance for the estimated attitude
+  // imu.orientation.x = data->quaternion.x;
+  // imu.orientation.y = data->quaternion.y;
+  // imu.orientation.z = data->quaternion.z;
+  // imu.orientation.w = data->quaternion.w;
+
+  if (use_binary_output_) {
+    imu_msg.orientation.x = data.quaternion.x;
+    imu_msg.orientation.y = data.quaternion.y;
+    imu_msg.orientation.z = data.quaternion.z;
+    imu_msg.orientation.w = data.quaternion.w;
+    // NOTE: The IMU angular velocity and linear acceleration outputs are
+    // swapped
+    imu_msg.angular_velocity.x = data.accelerationUncompensated.c0;
+    imu_msg.angular_velocity.y = data.accelerationUncompensated.c1;
+    imu_msg.angular_velocity.z = data.accelerationUncompensated.c2;
+    imu_msg.linear_acceleration.x = data.angularRateUncompensated.c0;
+    imu_msg.linear_acceleration.y = data.angularRateUncompensated.c1;
+    imu_msg.linear_acceleration.z = data.angularRateUncompensated.c2;
+  } else {
+    imu_msg.linear_acceleration.x = data.acceleration.c0;
+    imu_msg.linear_acceleration.y = data.acceleration.c1;
+    imu_msg.linear_acceleration.z = data.acceleration.c2;
+    imu_msg.angular_velocity.x = data.angularRate.c0;
+    imu_msg.angular_velocity.y = data.angularRate.c1;
+    imu_msg.angular_velocity.z = data.angularRate.c2;
+  }
+  pub_imu_.publish(imu_msg);
+  //  imu_diag_ptr->tick(imu.header.stamp);
+
+  if (enable_mag_) {
+    sensor_msgs::MagneticField mag_msg;
+    mag_msg.header = imu_msg.header;
+    mag_msg.magnetic_field.x = data.magnetic.c0;
+    mag_msg.magnetic_field.y = data.magnetic.c1;
+    mag_msg.magnetic_field.z = data.magnetic.c2;
+    pub_mag_.publish(mag_msg);
+    //    mag_diag_ptr->tick(imu.header.stamp);
+  }
+
+  if (enable_pres_) {
+    sensor_msgs::FluidPressure pressure_msg;
+    pressure_msg.header = imu_msg.header;
+    pressure_msg.fluid_pressure = data.pressure;
+    pub_pres_.publish(pressure_msg);
+    //    pres_diag_ptr->tick(imu.header.stamp);
+  }
+
+  if (*enable_temp_ptr) {
+    sensor_msgs::Temperature temp_msg;
+    temp_msg.header = imu_msg.header;
+    temp_msg.temperature = data.temperature;
+    pub_temp_.publish(temp_msg);
+    //    temp_diag_ptr->tick(imu.header.stamp);
+  }
+
+  if (sync_out_rate_ > 0) {
+    if (sync_info.sync_count() == -1) {
+      // Initialize the count if never set
+      sync_info.set_sync_count(data.syncInCnt);
+    } else {
+      // Record the time when the sync counter increases
+      if (sync_info.sync_count() != data.syncInCnt) {
+        sync_info.set_sync_time(imu_msg.header.stamp);
+        sync_info.set_sync_count(data.syncInCnt);
+      }
+    }
+  }
 }
 
 // void ImuVn100::UpdateDiagnosticInfo(

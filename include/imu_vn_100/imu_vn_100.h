@@ -17,12 +17,7 @@
 #ifndef IMU_VN_100_ROS_H_
 #define IMU_VN_100_ROS_H_
 
-#include <boost/bind.hpp>
-#include <boost/shared_ptr.hpp>
-#include <boost/thread.hpp>
-
 #include <ros/ros.h>
-#include <ros/node_handle.h>
 #include <diagnostic_updater/diagnostic_updater.h>
 #include <diagnostic_updater/publisher.h>
 #include <sensor_msgs/Imu.h>
@@ -35,11 +30,7 @@
 namespace imu_vn_100 {
 
 using uuid = long long int;
-/**
- * @brief SyncInfo Contains the data for reporting
- *    synchronization status. And it handles the
- *    thread-safe reading and writing.
- */
+
 struct SyncInfo {
   uuid sync_count_;
   ros::Time sync_time_;
@@ -57,12 +48,12 @@ struct SyncInfo {
     return sync_time_;
   }
 
-  void setSyncCount(const uuid& new_count) {
+  void set_sync_count(const uuid& new_count) {
     boost::unique_lock<boost::shared_mutex> write_lock(mtx);
     sync_count_ = new_count;
   }
 
-  void setSyncTime(const ros::Time& new_time) {
+  void set_sync_time(const ros::Time& new_time) {
     boost::unique_lock<boost::shared_mutex> write_lock(mtx);
     sync_time_ = new_time;
   }
@@ -85,6 +76,8 @@ class ImuVn100 {
    * @param enabled If ture, the continuous stream is enabled
    */
   void Stream(bool async = true);
+
+  void PublishData(const VnDeviceCompositeData& data);
 
   void RequestOnce();
 
@@ -149,7 +142,6 @@ class ImuVn100 {
   void LoadParameters();
   void CreatePublishers();
 
-  void PublishData();
   //  void UpdateDiagnosticInfo(diagnostic_updater::DiagnosticStatusWrapper&
   //  stat);
 };
