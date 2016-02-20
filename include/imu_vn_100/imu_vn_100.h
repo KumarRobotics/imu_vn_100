@@ -101,23 +101,23 @@ class ImuVn100 {
   ros::Time getSyncTime() { return sync_info.sync_time(); }
 
  private:
-  static const int kImuBaseRate = 800;
-  static const int kImuDefaultRate = 100;
+  static constexpr int kImuBaseRate = 800;
+  static constexpr int kImuDefaultRate = 100;
 
   // Settings
   std::string port_;
-  int baudrate_;
-  int imu_rate_;
+  int baudrate_ = 921600;
+  int imu_rate_ = kImuDefaultRate;
+  double imu_rate_update_ = kImuDefaultRate;
   std::string frame_id_;
 
-  bool enable_mag;
-  bool enable_pres;
-  bool enable_temp;
-  bool use_binary_output;
+  bool enable_mag = true;
+  bool enable_pres = true;
+  bool enable_temp = true;
+  bool use_binary_output = true;
 
-  bool enable_sync_out;
+  int sync_out_rate_ = -1;
   int sync_out_pulse_width;
-  int sync_out_rate;
   float act_sync_out_rate;
   int sync_out_skip_count;
 
@@ -134,14 +134,14 @@ class ImuVn100 {
   ros::Publisher pub_temp_;
 
   // diagnostic_updater resources
-  double update_rate;
   boost::shared_ptr<diagnostic_updater::Updater> updater;
   boost::shared_ptr<diagnostic_updater::TopicDiagnostic> imu_diag;
   boost::shared_ptr<diagnostic_updater::TopicDiagnostic> mag_diag;
   boost::shared_ptr<diagnostic_updater::TopicDiagnostic> pres_diag;
   boost::shared_ptr<diagnostic_updater::TopicDiagnostic> temp_diag;
 
-  int FixImuRate(int requested_rate);
+  void FixImuRate();
+  void FixSyncOutRate();
 
   void LoadParameters();
   void CreatePublishers();

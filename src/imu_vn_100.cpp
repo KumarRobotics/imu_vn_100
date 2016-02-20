@@ -31,7 +31,7 @@ string* frame_id_ptr;
 bool* enable_mag_ptr;
 bool* enable_pres_ptr;
 bool* enable_temp_ptr;
-bool* enable_sync_out_ptr;
+int* enable_sync_out_ptr;
 bool* use_binary_output_ptr;
 
 SyncInfo* sync_info_ptr;
@@ -113,7 +113,7 @@ void asyncDataListener(void* sender, VnDeviceCompositeData* data) {
     temp_diag_ptr->tick(imu.header.stamp);
   }
 
-  if (*enable_sync_out_ptr) {
+  if (*enable_sync_out_ptr > 0) {
     if (sync_info_ptr->sync_count() == -1) {
       // Initialize the count if never set
       sync_info_ptr->setSyncCount(data->syncInCnt);
@@ -139,66 +139,60 @@ ImuVn100::ImuVn100(const NodeHandle& pnh)
       port_(string("/dev/ttyUSB0")),
       baudrate_(921600),
       frame_id_(string("imu")),
-      enable_mag(true),
-      enable_pres(true),
-      enable_temp(true),
-      enable_sync_out(true),
       sync_out_pulse_width(500000) {
   Initialize();
 }
 
 ImuVn100::~ImuVn100() { Disconnect(); }
 
-int ImuVn100::FixImuRate(int requested_rate) {
-  if (requested_rate <= 0) {
-    ROS_WARN("Imu rate %d is < 0. Set to %d", requested_rate, kImuDefaultRate);
-    requested_rate = kImuDefaultRate;
+void ImuVn100::FixImuRate() {
+  if (imu_rate_ <= 0) {
+    ROS_WARN("Imu rate %d is < 0. Set to %d", imu_rate_, kImuDefaultRate);
+    imu_rate_ = kImuDefaultRate;
   }
 
   // This is a wrong implementation
-  int actual_rate;
-  if (kImuBaseRate % requested_rate != 0) {
-    actual_rate = kImuBaseRate / (kImuBaseRate / requested_rate);
+  if (kImuBaseRate % imu_rate_ != 0) {
+    int imu_rate_old = imu_rate_;
+    // TODO: THIS DOENS'T DO WHAT'S INTENDED
+    imu_rate_ = kImuBaseRate / (kImuBaseRate / imu_rate_old);
     ROS_WARN("Imu rate %d cannot evenly decimate base rate %d, reset to %d",
-             requested_rate, kImuBaseRate, actual_rate);
-  } else {
-    actual_rate = requested_rate;
+             imu_rate_old, kImuBaseRate, imu_rate_);
   }
-  return actual_rate;
 }
+
+void ImuVn100::FixSyncOutRate() {}
 
 void ImuVn100::LoadParameters() {
   pnh_.param<string>("port", port_, std::string("/dev/ttyUSB0"));
-  pnh_.param("baudrate", baudrate_, 115200);
   pnh_.param<string>("frame_id", frame_id_, pnh_.getNamespace());
+  pnh_.param("baudrate", baudrate_, 115200);
   pnh_.param("imu_rate", imu_rate_, 100);
 
   pnh_.param("enable_magnetic_field", enable_mag, true);
   pnh_.param("enable_pressure", enable_pres, true);
   pnh_.param("enable_temperature", enable_temp, true);
 
-  pnh_.param("enable_sync_out", enable_sync_out, true);
-  pnh_.param("sync_out_rate", sync_out_rate, 30);
+  pnh_.param("sync_out_rate", sync_out_rate_, 30);
   pnh_.param("sync_out_pulse_width", sync_out_pulse_width, 500000);
 
   pnh_.param("use_binary_output", use_binary_output, true);
 
-  update_rate = static_cast<double>(imu_rate_);
   frame_id_ptr = &frame_id_;
   enable_mag_ptr = &enable_mag;
   enable_pres_ptr = &enable_pres;
   enable_temp_ptr = &enable_temp;
-  enable_sync_out_ptr = &enable_sync_out;
+  enable_sync_out_ptr = &sync_out_rate_;
   use_binary_output_ptr = &use_binary_output;
   sync_info_ptr = &sync_info;
 
-  imu_rate_ = FixImuRate(imu_rate_);
+  FixImuRate();
 
   // Check the sync out rate
-  if (enable_sync_out) {
-    act_sync_out_rate = sync_out_rate;
-    if (800 % sync_out_rate != 0) {
-      act_sync_out_rate = 800.0 / (800 / sync_out_rate);
+  if (sync_out_rate_ > 0) {
+    act_sync_out_rate = sync_out_rate_;
+    if (800 % sync_out_rate_ != 0) {
+      act_sync_out_rate = 800.0 / (800 / sync_out_rate_);
       ROS_INFO("Set SYNC_OUT_RATE to %f", act_sync_out_rate);
     }
     sync_out_skip_count =
@@ -349,7 +343,7 @@ bool ImuVn100::Initialize() {
   ErrorCodeParser(error_code);
   ROS_INFO("Firmware version: %s", firmware_version_buffer);
 
-  if (enable_sync_out) {
+  if (sync_out_rate_ > 0) {
     // Configure the synchronization control register
     ROS_INFO("Set Synchronization Control Register (id:32).");
     error_code = vn100_setSynchronizationControl(
@@ -384,9 +378,9 @@ bool ImuVn100::Initialize() {
   // updater->add("diagnostic_info", this,
   //    &ImuRosBase::updateDiagnosticInfo);
 
-  diagnostic_updater::FrequencyStatusParam freqParam(&update_rate, &update_rate,
-                                                     0.01, 10);
-  diagnostic_updater::TimeStampStatusParam timeParam(0, 0.5 / update_rate);
+  diagnostic_updater::FrequencyStatusParam freqParam(
+      &imu_rate_update_, &imu_rate_update_, 0.01, 10);
+  diagnostic_updater::TimeStampStatusParam timeParam(0, 0.5 / imu_rate_);
   imu_diag.reset(new diagnostic_updater::TopicDiagnostic("imu", *updater,
                                                          freqParam, timeParam));
   if (enable_mag)

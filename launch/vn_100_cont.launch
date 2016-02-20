@@ -1,24 +1,15 @@
 <launch>
-    <!-- Node Settings -->
     <arg name="output" default="screen"/>
     <arg name="imu" default="imu"/>
 
-    <!-- IMU Settings -->
     <arg name="port" default="/dev/ttyUSB0" />
-
-    <!-- Frame ID for messages -->
     <arg name="frame_id" default="$(arg imu)"/>
-
-    <!-- Baudrate of serial comms (see manual for allowed values) -->
     <arg name="baudrate" default="921600"/>
-
-    <!-- Data rate in Hz -->
-    <arg name="imu_rate" default="200"/>
+    <arg name="imu_rate" default="100"/>
 
     <!-- Sync out settings -->
-    <arg name="enable_sync_out" default = "true"/>
-    <arg name="sync_out_rate" default = "40"/>
-    <arg name="sync_out_pulse_width" default = "1000000"/>
+    <arg name="sync_out_rate" default="40"/>
+    <arg name="sync_out_pulse_width" default="1000000"/>
 
     <!-- Ros Topic settings -->
     <arg name="enable_magnetic_field" default="true"/>
@@ -33,7 +24,6 @@
         <param name="enable_magnetic_field" type="bool" value="$(arg enable_magnetic_field)" />
         <param name="enable_pressure" type="bool" value="$(arg enable_pressure)" />
         <param name="enable_temperature" type="bool" value="$(arg enable_temperature)" />
-        <param name="enable_sync_out" type="bool" value="$(arg enable_sync_out)" />
         <param name="sync_out_rate" type="int" value="$(arg sync_out_rate)" />
         <param name="sync_out_pulse_width" type="int" value="$(arg sync_out_pulse_width)" />
     </node>
