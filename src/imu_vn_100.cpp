@@ -18,7 +18,12 @@
 
 namespace imu_vn_100 {
 
-ImuVn100* hack_;
+// LESS HACK IS STILL HACK
+ImuVn100* evil_global_;
+
+constexpr int ImuVn100::kBaseImuRate;
+constexpr int ImuVn100::kDefaultImuRate;
+constexpr int ImuVn100::kDefaultSyncOutRate;
 
 // boost::shared_ptr<diagnostic_updater::Updater> updater_ptr;
 // boost::shared_ptr<diagnostic_updater::TopicDiagnostic> imu_diag_ptr;
@@ -26,25 +31,18 @@ ImuVn100* hack_;
 // boost::shared_ptr<diagnostic_updater::TopicDiagnostic> pres_diag_ptr;
 // boost::shared_ptr<diagnostic_updater::TopicDiagnostic> temp_diag_ptr;
 
-// Callback function for new data event
-// in the continous stream mode
-
 void AsyncListener(void* sender, VnDeviceCompositeData* data) {
-  hack_->PublishData(*data);
+  evil_global_->PublishData(*data);
 }
-
-constexpr int ImuVn100::kBaseImuRate;
-constexpr int ImuVn100::kDefaultImuRate;
-constexpr int ImuVn100::kDefaultSyncOutRate;
 
 ImuVn100::ImuVn100(const ros::NodeHandle& pnh)
     : pnh_(pnh),
       port_(std::string("/dev/ttyUSB0")),
       baudrate_(921600),
       frame_id_(std::string("imu")),
-      sync_out_pulse_width_us(500000) {
+      sync_out_pulse_width_us_(500000) {
   Initialize();
-  hack_ = this;
+  evil_global_ = this;
 }
 
 ImuVn100::~ImuVn100() { Disconnect(); }
@@ -62,23 +60,24 @@ void ImuVn100::FixImuRate() {
     ROS_WARN("Imu rate %d cannot evenly decimate base rate %d, reset to %d",
              imu_rate_old, kBaseImuRate, imu_rate_);
   }
+  ROS_ASSERT_MSG(kBaseImuRate % imu_rate_ == 0, "Imu rate is fucked up");
 }
 
 void ImuVn100::FixSyncOutRate() {
   // Check the sync out rate
   if (sync_out_rate_ > 0) {
-    act_sync_out_rate = sync_out_rate_;
     if (kBaseImuRate % sync_out_rate_ != 0) {
-      act_sync_out_rate = 800.0 / (800 / sync_out_rate_);
-      ROS_INFO("Set SYNC_OUT_RATE to %f", act_sync_out_rate);
+      sync_out_rate_ = 800.0 / (800 / sync_out_rate_);
+      ROS_INFO("Set SYNC_OUT_RATE to %d", sync_out_rate_);
     }
-    sync_out_skip_count =
-        static_cast<int>(floor(800.0 / act_sync_out_rate + 0.5f)) - 1;
+    sync_out_skip_cnt_ = (std::floor(800.0 / sync_out_rate_ + 0.5f)) - 1;
 
-    if (sync_out_pulse_width_us > 10000000) {
+    if (sync_out_pulse_width_us_ > 10000000) {
       ROS_INFO("Sync out pulse with is over 10ms. Reset to 0.5ms");
-      sync_out_pulse_width_us = 500000;
+      sync_out_pulse_width_us_ = 500000;
     }
+    ROS_ASSERT_MSG(kBaseImuRate % sync_out_rate_ == 0,
+                   "Sync out rate is fucked up");
   }
 }
 
@@ -93,7 +92,7 @@ void ImuVn100::LoadParameters() {
   pnh_.param("enable_temp", enable_temp_, true);
 
   pnh_.param("sync_out_rate", sync_out_rate_, kDefaultSyncOutRate);
-  pnh_.param("sync_out_pulse_width", sync_out_pulse_width_us, 500000);
+  pnh_.param("sync_out_pulse_width", sync_out_pulse_width_us_, 500000);
 
   pnh_.param("use_binary_output", use_binary_output_, true);
 
@@ -185,7 +184,7 @@ void ImuVn100::Initialize() {
     ROS_INFO("Set Synchronization Control Register (id:32).");
     VnEnsure(vn100_setSynchronizationControl(
         &imu_, SYNCINMODE_COUNT, SYNCINEDGE_RISING, 0, SYNCOUTMODE_IMU_START,
-        SYNCOUTPOLARITY_POSITIVE, sync_out_skip_count, sync_out_pulse_width_us,
+        SYNCOUTPOLARITY_POSITIVE, sync_out_skip_cnt_, sync_out_pulse_width_us_,
         true));
 
     if (!use_binary_output_) {

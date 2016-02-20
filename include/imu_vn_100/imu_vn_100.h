@@ -34,29 +34,16 @@ using uuid = long long int;
 struct SyncInfo {
   uuid sync_count_;
   ros::Time sync_time_;
-  boost::shared_mutex mtx;
 
   SyncInfo() : sync_count_(-1), sync_time_(ros::Time::now()) {}
 
-  uuid sync_count() {
-    boost::shared_lock<boost::shared_mutex> read_lock(mtx);
-    return sync_count_;
-  }
+  uuid sync_count() { return sync_count_; }
 
-  ros::Time sync_time() {
-    boost::shared_lock<boost::shared_mutex> read_lock(mtx);
-    return sync_time_;
-  }
+  ros::Time sync_time() { return sync_time_; }
 
-  void set_sync_count(const uuid& new_count) {
-    boost::unique_lock<boost::shared_mutex> write_lock(mtx);
-    sync_count_ = new_count;
-  }
+  void set_sync_count(const uuid& sync_count) { sync_count_ = sync_count; }
 
-  void set_sync_time(const ros::Time& new_time) {
-    boost::unique_lock<boost::shared_mutex> write_lock(mtx);
-    sync_time_ = new_time;
-  }
+  void set_sync_time(const ros::Time& sync_time) { sync_time_ = sync_time; }
 };
 
 /**
@@ -89,11 +76,11 @@ class ImuVn100 {
 
   void Configure();
 
-  float getSyncRate() { return act_sync_out_rate; }
+  int sync_out_rate() const;
 
-  uuid getSyncCount() { return sync_info.sync_count(); }
+  uuid sync_count() const;
 
-  ros::Time getSyncTime() { return sync_info.sync_time(); }
+  const ros::Time sync_time() const;
 
  private:
   static constexpr int kBaseImuRate = 800;
@@ -116,9 +103,8 @@ class ImuVn100 {
   bool use_binary_output_ = true;
 
   int sync_out_rate_ = kDefaultSyncOutRate;
-  int sync_out_pulse_width_us;
-  float act_sync_out_rate;
-  int sync_out_skip_count;
+  int sync_out_pulse_width_us_;
+  int sync_out_skip_cnt_;
 
   // Tracking the triggering signal
   SyncInfo sync_info;
