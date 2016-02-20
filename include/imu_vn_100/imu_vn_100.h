@@ -42,27 +42,29 @@ using uuid = long long int;
  */
 struct SyncInfo {
   uuid sync_count_;
-  ros::Time sync_time;
+  ros::Time sync_time_;
   boost::shared_mutex mtx;
 
-  SyncInfo() : sync_count_(-1), sync_time(ros::Time::now()) {}
+  SyncInfo() : sync_count_(-1), sync_time_(ros::Time::now()) {}
 
   uuid sync_count() {
     boost::shared_lock<boost::shared_mutex> read_lock(mtx);
     return sync_count_;
   }
-  ros::Time getSyncTime() {
+
+  ros::Time sync_time() {
     boost::shared_lock<boost::shared_mutex> read_lock(mtx);
-    return sync_time;
+    return sync_time_;
   }
+
   void setSyncCount(const uuid& new_count) {
     boost::unique_lock<boost::shared_mutex> write_lock(mtx);
     sync_count_ = new_count;
-    return;
   }
+
   void setSyncTime(const ros::Time& new_time) {
     boost::unique_lock<boost::shared_mutex> write_lock(mtx);
-    sync_time = new_time;
+    sync_time_ = new_time;
   }
 };
 
@@ -70,80 +72,40 @@ struct SyncInfo {
  * @brief ImuRosBase The class is a ros wrapper for the Imu class
  * @author Ke Sun
  */
-class ImuRosBase {
+class ImuVn100 {
  public:
-  /**
-   * @brief Constructor of the class
-   */
-  ImuRosBase(const ros::NodeHandle& pnh);
-  /**
-   * @brief Destructor of the class
-   * @note Disconnect the device automatically
-   */
-  ~ImuRosBase() { disconnect(); }
-  /**
-   * @brief initialize Initialize IMU according to the settings
-   */
-  bool initialize();
+  explicit ImuVn100(const ros::NodeHandle& pnh);
+  ImuVn100(const ImuVn100&) = delete;
+  ImuVn100& operator=(const ImuVn100&) = delete;
+  ~ImuVn100();
+
+  bool Initialize();
   /**
    * @brief enableIMUStream Enable or disable IMU stream
    * @param enabled If ture, the continuous stream is enabled
    */
-  void enableStream(bool enabled);
+  void Stream(bool enabled);
 
-  /**
-   * @brief requestIMUOnce Request IMU data for a single time
-   */
-  void requestOnce();
+  void RequestOnce();
 
-  /**
-   * @brief idle Set the device to idle mode
-   * @need_reply If ture, a ack package is expected
-   */
-  void idle(bool need_reply = true) {
-    vn100_pauseAsyncOutputs(&imu, need_reply);
-    return;
-  }
+  void Idle(bool need_reply = true);
 
-  /**
-   * @brief resume Resume data streaming
-   * @need_reply If ture, a ack package is expected
-   */
-  void resume(bool need_reply = true) {
-    vn100_resumeAsyncOutputs(&imu, need_reply);
-    return;
-  }
+  void Resume(bool need_reply = true);
 
-  /**
-   * @brief disconnect Disconnect the device
-   */
-  void disconnect() {
-    vn100_reset(&imu);
-    vn100_disconnect(&imu);
-  }
+  void Disconnect();
 
-  /**
-   * @brief getSyncRate Returns the rate of synchronization
-   */
   float getSyncRate() { return act_sync_out_rate; }
 
-  /**
-   * @brief getSyncCount Resturns the count for sync trigger
-   */
   uuid getSyncCount() { return sync_info.sync_count(); }
 
-  /**
-   * @brief getSyncTime Resturns the ros time stamp for the
-   *    latest trigger
-   */
-  ros::Time getSyncTime() { return sync_info.getSyncTime(); }
+  ros::Time getSyncTime() { return sync_info.sync_time(); }
 
  private:
   // Settings
-  std::string port;
-  int baudrate;
-  int imu_rate;
-  std::string frame_id;
+  std::string port_;
+  int baudrate_;
+  int imu_rate_;
+  std::string frame_id_;
 
   bool enable_mag;
   bool enable_pres;
@@ -157,16 +119,16 @@ class ImuRosBase {
   int sync_out_skip_count;
 
   ros::NodeHandle pnh_;
-  Vn100 imu;
+  Vn100 imu_;
 
   // Tracking the triggering signal
   SyncInfo sync_info;
 
   // Publishers
-  ros::Publisher pub_imu;
-  ros::Publisher pub_mag;
-  ros::Publisher pub_pres;
-  ros::Publisher pub_temp;
+  ros::Publisher pub_imu_;
+  ros::Publisher pub_mag_;
+  ros::Publisher pub_pres_;
+  ros::Publisher pub_temp_;
 
   // diagnostic_updater resources
   double update_rate;
@@ -176,16 +138,12 @@ class ImuRosBase {
   boost::shared_ptr<diagnostic_updater::TopicDiagnostic> pres_diag;
   boost::shared_ptr<diagnostic_updater::TopicDiagnostic> temp_diag;
 
-  // Disable copy constructor and assign operator
-  ImuRosBase(const ImuRosBase&);
-  ImuRosBase& operator=(const ImuRosBase&);
-
-  bool loadParameters();
-  void createPublishers();
-  void errorCodeParser(const VN_ERROR_CODE& error_code);
+  bool LoadParameters();
+  void CreatePublishers();
+  void ErrorCodeParser(const VN_ERROR_CODE& error_code);
 
   // Publish IMU msgs
-  void publishIMUData();
+  void PublishData();
   // Callback function for adding meta info in the diag msgs
   void updateDiagnosticInfo(diagnostic_updater::DiagnosticStatusWrapper& stat);
 };

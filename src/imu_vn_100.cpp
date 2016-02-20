@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <imu_vn_100/imu_ros_base.h>
+#include <imu_vn_100/imu_vn_100.h>
 
 using namespace std;
 using namespace ros;
@@ -134,35 +134,39 @@ void asyncDataListener(void* sender, VnDeviceCompositeData* data) {
   return;
 }
 
-ImuRosBase::ImuRosBase(const NodeHandle& pnh)
+ImuVn100::ImuVn100(const NodeHandle& pnh)
     : pnh_(pnh),
-      port(string("/dev/ttyUSB0")),
-      baudrate(921600),
-      frame_id(string("imu")),
+      port_(string("/dev/ttyUSB0")),
+      baudrate_(921600),
+      frame_id_(string("imu")),
       enable_mag(true),
       enable_pres(true),
       enable_temp(true),
       enable_sync_out(true),
-      sync_out_pulse_width(500000) {}
+      sync_out_pulse_width(500000) {
+  Initialize();
+}
 
-bool ImuRosBase::loadParameters() {
-  pnh_.param<string>("port", port, std::string("/dev/ttyUSB0"));
-  pnh_.param("baudrate", baudrate, 115200);
-  pnh_.param<string>("frame_id", frame_id, pnh_.getNamespace());
-  pnh_.param("imu_rate", imu_rate, 100);
+ImuVn100::~ImuVn100() { Disconnect(); }
 
-  pnh_.param<bool>("enable_magnetic_field", enable_mag, true);
-  pnh_.param<bool>("enable_pressure", enable_pres, true);
-  pnh_.param<bool>("enable_temperature", enable_temp, true);
+bool ImuVn100::LoadParameters() {
+  pnh_.param<string>("port", port_, std::string("/dev/ttyUSB0"));
+  pnh_.param("baudrate", baudrate_, 115200);
+  pnh_.param<string>("frame_id", frame_id_, pnh_.getNamespace());
+  pnh_.param("imu_rate", imu_rate_, 100);
 
-  pnh_.param<bool>("enable_sync_out", enable_sync_out, true);
-  pnh_.param<int>("sync_out_rate", sync_out_rate, 30);
-  pnh_.param<int>("sync_out_pulse_width", sync_out_pulse_width, 500000);
+  pnh_.param("enable_magnetic_field", enable_mag, true);
+  pnh_.param("enable_pressure", enable_pres, true);
+  pnh_.param("enable_temperature", enable_temp, true);
 
-  pnh_.param<bool>("use_binary_output", use_binary_output, true);
+  pnh_.param("enable_sync_out", enable_sync_out, true);
+  pnh_.param("sync_out_rate", sync_out_rate, 30);
+  pnh_.param("sync_out_pulse_width", sync_out_pulse_width, 500000);
 
-  update_rate = static_cast<double>(imu_rate);
-  frame_id_ptr = &frame_id;
+  pnh_.param("use_binary_output", use_binary_output, true);
+
+  update_rate = static_cast<double>(imu_rate_);
+  frame_id_ptr = &frame_id_;
   enable_mag_ptr = &enable_mag;
   enable_pres_ptr = &enable_pres;
   enable_temp_ptr = &enable_temp;
@@ -171,13 +175,13 @@ bool ImuRosBase::loadParameters() {
   sync_info_ptr = &sync_info;
 
   // Check the IMU rate
-  if (imu_rate < 0) {
-    imu_rate = 100;
-    ROS_WARN("IMU_RATE is invalid. Reset to %d", imu_rate);
+  if (imu_rate_ < 0) {
+    imu_rate_ = 100;
+    ROS_WARN("IMU_RATE is invalid. Reset to %d", imu_rate_);
   }
-  if (800 % imu_rate != 0) {
-    imu_rate = 800 / (800 / imu_rate);
-    ROS_WARN("IMU_RATE is invalid. Reset to %d", imu_rate);
+  if (800 % imu_rate_ != 0) {
+    imu_rate_ = 800 / (800 / imu_rate_);
+    ROS_WARN("IMU_RATE is invalid. Reset to %d", imu_rate_);
   }
 
   // Check the sync out rate
@@ -199,30 +203,41 @@ bool ImuRosBase::loadParameters() {
   return true;
 }
 
-void ImuRosBase::createPublishers() {
+void ImuVn100::CreatePublishers() {
   // IMU data publisher
-  pub_imu = pnh_.advertise<sensor_msgs::Imu>("imu", 1);
-  pub_imu_ptr = &pub_imu;
+  pub_imu_ = pnh_.advertise<sensor_msgs::Imu>("imu", 1);
+  pub_imu_ptr = &pub_imu_;
   // Magnetic field data publisher
   if (enable_mag) {
-    pub_mag = pnh_.advertise<sensor_msgs::MagneticField>("magnetic_field", 1);
-    pub_mag_ptr = &pub_mag;
+    pub_mag_ = pnh_.advertise<sensor_msgs::MagneticField>("magnetic_field", 1);
+    pub_mag_ptr = &pub_mag_;
   }
   // Pressure data publisher
   if (enable_pres) {
-    pub_pres = pnh_.advertise<sensor_msgs::FluidPressure>("pressure", 1);
-    pub_pres_ptr = &pub_pres;
+    pub_pres_ = pnh_.advertise<sensor_msgs::FluidPressure>("pressure", 1);
+    pub_pres_ptr = &pub_pres_;
   }
   // Temperature data publisher
   if (enable_temp) {
-    pub_temp = pnh_.advertise<sensor_msgs::Temperature>("temperature", 1);
-    pub_temp_ptr = &pub_temp;
+    pub_temp_ = pnh_.advertise<sensor_msgs::Temperature>("temperature", 1);
+    pub_temp_ptr = &pub_temp_;
   }
-
-  return;
 }
 
-void ImuRosBase::errorCodeParser(const VN_ERROR_CODE& error_code) {
+void ImuVn100::Resume(bool need_reply) {
+  vn100_resumeAsyncOutputs(&imu_, need_reply);
+}
+
+void ImuVn100::Idle(bool need_reply) {
+  vn100_pauseAsyncOutputs(&imu_, need_reply);
+}
+
+void ImuVn100::Disconnect() {
+  vn100_reset(&imu_);
+  vn100_disconnect(&imu_);
+}
+
+void ImuVn100::ErrorCodeParser(const VN_ERROR_CODE& error_code) {
   // We only parse a fraction of the error code here.
   // All of the error codes with VNERR_SENSOR* as prefix
   // are omitted.
@@ -263,51 +278,51 @@ void ImuRosBase::errorCodeParser(const VN_ERROR_CODE& error_code) {
   return;
 }
 
-bool ImuRosBase::initialize() {
+bool ImuVn100::Initialize() {
   // load parameters
-  if (!loadParameters()) return false;
+  if (!LoadParameters()) return false;
 
   // Create publishers
-  createPublishers();
+  CreatePublishers();
 
   VN_ERROR_CODE error_code;
 
   // Connect to the device
   ROS_INFO("Connecting to device");
-  error_code = vn100_connect(&imu, port.c_str(), 115200);
-  errorCodeParser(error_code);
+  error_code = vn100_connect(&imu_, port_.c_str(), 115200);
+  ErrorCodeParser(error_code);
   ros::Duration(0.5).sleep();
-  ROS_INFO("Connected to device at %s", port.c_str());
+  ROS_INFO("Connected to device at %s", port_.c_str());
 
   // Get the old serial baudrate
   unsigned int old_baudrate;
-  error_code = vn100_getSerialBaudRate(&imu, &old_baudrate);
+  error_code = vn100_getSerialBaudRate(&imu_, &old_baudrate);
   ROS_INFO("Default serial baudrate: %u", old_baudrate);
 
   // Set the new serial baudrate
-  ROS_INFO("Set serial baudrate to %d", baudrate);
-  error_code = vn100_setSerialBaudRate(&imu, baudrate, true);
-  errorCodeParser(error_code);
+  ROS_INFO("Set serial baudrate to %d", baudrate_);
+  error_code = vn100_setSerialBaudRate(&imu_, baudrate_, true);
+  ErrorCodeParser(error_code);
 
   // Disconnect the device
   ROS_INFO("Disconnecting the device");
-  vn100_disconnect(&imu);
+  vn100_disconnect(&imu_);
   ros::Duration(0.5).sleep();
 
   // Reconnect to the device
   ROS_INFO("Reconnecting to device");
-  error_code = vn100_connect(&imu, port.c_str(), baudrate);
-  errorCodeParser(error_code);
+  error_code = vn100_connect(&imu_, port_.c_str(), baudrate_);
+  ErrorCodeParser(error_code);
   ros::Duration(0.5).sleep();
-  ROS_INFO("Connected to device at %s", port.c_str());
+  ROS_INFO("Connected to device at %s", port_.c_str());
 
   // Check the new baudrate
-  error_code = vn100_getSerialBaudRate(&imu, &old_baudrate);
+  error_code = vn100_getSerialBaudRate(&imu_, &old_baudrate);
   ROS_INFO("New serial baudrate: %u", old_baudrate);
 
   // Idle the device for intialization
-  error_code = vn100_pauseAsyncOutputs(&imu, true);
-  errorCodeParser(error_code);
+  error_code = vn100_pauseAsyncOutputs(&imu_, true);
+  ErrorCodeParser(error_code);
 
   // Get device info
   ROS_INFO("Fetching device info.");
@@ -316,33 +331,33 @@ bool ImuRosBase::initialize() {
   char serial_number_buffer[30] = {0};
   char firmware_version_buffer[30] = {0};
 
-  error_code = vn100_getModelNumber(&imu, model_number_buffer, 30);
-  errorCodeParser(error_code);
+  error_code = vn100_getModelNumber(&imu_, model_number_buffer, 30);
+  ErrorCodeParser(error_code);
   ROS_INFO("Model number: %s", model_number_buffer);
-  error_code = vn100_getHardwareRevision(&imu, &hardware_revision);
-  errorCodeParser(error_code);
+  error_code = vn100_getHardwareRevision(&imu_, &hardware_revision);
+  ErrorCodeParser(error_code);
   ROS_INFO("Hardware revision: %d", hardware_revision);
-  error_code = vn100_getSerialNumber(&imu, serial_number_buffer, 30);
-  errorCodeParser(error_code);
+  error_code = vn100_getSerialNumber(&imu_, serial_number_buffer, 30);
+  ErrorCodeParser(error_code);
   ROS_INFO("Serial number: %s", serial_number_buffer);
-  error_code = vn100_getFirmwareVersion(&imu, firmware_version_buffer, 30);
-  errorCodeParser(error_code);
+  error_code = vn100_getFirmwareVersion(&imu_, firmware_version_buffer, 30);
+  ErrorCodeParser(error_code);
   ROS_INFO("Firmware version: %s", firmware_version_buffer);
 
   if (enable_sync_out) {
     // Configure the synchronization control register
     ROS_INFO("Set Synchronization Control Register (id:32).");
     error_code = vn100_setSynchronizationControl(
-        &imu, SYNCINMODE_COUNT, SYNCINEDGE_RISING, 0, SYNCOUTMODE_IMU_START,
+        &imu_, SYNCINMODE_COUNT, SYNCINEDGE_RISING, 0, SYNCOUTMODE_IMU_START,
         SYNCOUTPOLARITY_POSITIVE, sync_out_skip_count, sync_out_pulse_width,
         true);
-    errorCodeParser(error_code);
+    ErrorCodeParser(error_code);
 
     if (!use_binary_output) {
       // Configure the communication protocal control register
       ROS_INFO("Set Communication Protocal Control Register (id:30).");
       error_code = vn100_setCommunicationProtocolControl(
-          &imu, SERIALCOUNT_SYNCOUT_COUNT, SERIALSTATUS_OFF, SPICOUNT_NONE,
+          &imu_, SERIALCOUNT_SYNCOUT_COUNT, SERIALSTATUS_OFF, SPICOUNT_NONE,
           SPISTATUS_OFF, SERIALCHECKSUM_8BIT, SPICHECKSUM_8BIT, ERRORMODE_SEND,
           true);
     }
@@ -388,25 +403,25 @@ bool ImuRosBase::initialize() {
   return true;
 }
 
-void ImuRosBase::enableStream(bool enabled) {
+void ImuVn100::Stream(bool enabled) {
   VN_ERROR_CODE error_code;
 
   // Pause the device first
-  error_code = vn100_pauseAsyncOutputs(&imu, true);
-  errorCodeParser(error_code);
+  error_code = vn100_pauseAsyncOutputs(&imu_, true);
+  ErrorCodeParser(error_code);
 
   if (enabled) {
-    error_code = vn100_setAsynchronousDataOutputType(&imu, VNASYNC_OFF, true);
-    errorCodeParser(error_code);
+    error_code = vn100_setAsynchronousDataOutputType(&imu_, VNASYNC_OFF, true);
+    ErrorCodeParser(error_code);
 
     if (use_binary_output) {
       // Set the binary output data type and data rate
       error_code = vn100_setBinaryOutput1Configuration(
-          &imu, BINARY_ASYNC_MODE_SERIAL_2, static_cast<int>(800 / imu_rate),
+          &imu_, BINARY_ASYNC_MODE_SERIAL_2, static_cast<int>(800 / imu_rate_),
           BG1_QTN | BG1_IMU | BG1_MAG_PRES | BG1_SYNC_IN_CNT,
           // BG1_IMU,
           BG3_NONE, BG5_NONE, true);
-      errorCodeParser(error_code);
+      ErrorCodeParser(error_code);
       // unsigned int base_freq = 0;
       // error_code = vn100_getAsynchronousDataOutputFrequency(
       //  &imu, &base_freq);
@@ -415,43 +430,38 @@ void ImuRosBase::enableStream(bool enabled) {
       // Set the ASCII output data type and data rate
       // ROS_INFO("Configure the output data type and frequency (id: 6 & 7)");
       error_code =
-          vn100_setAsynchronousDataOutputType(&imu, VNASYNC_VNIMU, true);
-      errorCodeParser(error_code);
+          vn100_setAsynchronousDataOutputType(&imu_, VNASYNC_VNIMU, true);
+      ErrorCodeParser(error_code);
     }
 
     // Add a callback function for new data event
     error_code =
-        vn100_registerAsyncDataReceivedListener(&imu, &asyncDataListener);
-    errorCodeParser(error_code);
+        vn100_registerAsyncDataReceivedListener(&imu_, &asyncDataListener);
+    ErrorCodeParser(error_code);
 
-    ROS_INFO("Setting IMU rate to %d", imu_rate);
-    error_code = vn100_setAsynchronousDataOutputFrequency(&imu, imu_rate, true);
-    errorCodeParser(error_code);
+    ROS_INFO("Setting IMU rate to %d", imu_rate_);
+    error_code =
+        vn100_setAsynchronousDataOutputFrequency(&imu_, imu_rate_, true);
+    ErrorCodeParser(error_code);
   } else {
     // Mute the stream
     ROS_INFO("Mute the device");
-    error_code = vn100_setAsynchronousDataOutputType(&imu, VNASYNC_OFF, true);
-    errorCodeParser(error_code);
+    error_code = vn100_setAsynchronousDataOutputType(&imu_, VNASYNC_OFF, true);
+    ErrorCodeParser(error_code);
     // Remove the callback function for new data event
     error_code =
-        vn100_unregisterAsyncDataReceivedListener(&imu, &asyncDataListener);
-    errorCodeParser(error_code);
+        vn100_unregisterAsyncDataReceivedListener(&imu_, &asyncDataListener);
+    ErrorCodeParser(error_code);
   }
 
   // Resume the device
-  error_code = vn100_resumeAsyncOutputs(&imu, true);
-  errorCodeParser(error_code);
-  return;
+  error_code = vn100_resumeAsyncOutputs(&imu_, true);
+  ErrorCodeParser(error_code);
 }
 
-void ImuRosBase::requestOnce() { return; }
-
-void ImuRosBase::publishIMUData() { return; }
-
-void ImuRosBase::updateDiagnosticInfo(
+void ImuVn100::updateDiagnosticInfo(
     diagnostic_updater::DiagnosticStatusWrapper& stat) {
   // TODO: add diagnostic info
-  return;
 }
 
 }  // End namespace imu_vn_100

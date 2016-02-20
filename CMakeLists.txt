@@ -28,7 +28,7 @@ add_library(imu_vn_100
   vncpplib/src/arch/linux/vncp_services.c
   vncpplib/src/vndevice.c
   vncpplib/src/vn100.c
-  src/imu_ros_base.cpp
+  src/imu_vn_100.cpp
 )
 target_link_libraries(imu_vn_100
   ${catkin_LIBRARIES}
