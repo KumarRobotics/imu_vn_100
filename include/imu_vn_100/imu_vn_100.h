@@ -84,7 +84,7 @@ class ImuVn100 {
    * @brief enableIMUStream Enable or disable IMU stream
    * @param enabled If ture, the continuous stream is enabled
    */
-  void Stream(bool enabled);
+  void Stream(bool async = true);
 
   void RequestOnce();
 
@@ -101,6 +101,9 @@ class ImuVn100 {
   ros::Time getSyncTime() { return sync_info.sync_time(); }
 
  private:
+  static const int kImuBaseRate = 800;
+  static const int kImuDefaultRate = 100;
+
   // Settings
   std::string port_;
   int baudrate_;
@@ -138,7 +141,9 @@ class ImuVn100 {
   boost::shared_ptr<diagnostic_updater::TopicDiagnostic> pres_diag;
   boost::shared_ptr<diagnostic_updater::TopicDiagnostic> temp_diag;
 
-  bool LoadParameters();
+  int FixImuRate(int requested_rate);
+
+  void LoadParameters();
   void CreatePublishers();
   void ErrorCodeParser(const VN_ERROR_CODE& error_code);
 

@@ -149,7 +149,25 @@ ImuVn100::ImuVn100(const NodeHandle& pnh)
 
 ImuVn100::~ImuVn100() { Disconnect(); }
 
-bool ImuVn100::LoadParameters() {
+int ImuVn100::FixImuRate(int requested_rate) {
+  if (requested_rate <= 0) {
+    ROS_WARN("Imu rate %d is < 0. Set to %d", requested_rate, kImuDefaultRate);
+    requested_rate = kImuDefaultRate;
+  }
+
+  // This is a wrong implementation
+  int actual_rate;
+  if (kImuBaseRate % requested_rate != 0) {
+    actual_rate = kImuBaseRate / (kImuBaseRate / requested_rate);
+    ROS_WARN("Imu rate %d cannot evenly decimate base rate %d, reset to %d",
+             requested_rate, kImuBaseRate, actual_rate);
+  } else {
+    actual_rate = requested_rate;
+  }
+  return actual_rate;
+}
+
+void ImuVn100::LoadParameters() {
   pnh_.param<string>("port", port_, std::string("/dev/ttyUSB0"));
   pnh_.param("baudrate", baudrate_, 115200);
   pnh_.param<string>("frame_id", frame_id_, pnh_.getNamespace());
@@ -174,15 +192,7 @@ bool ImuVn100::LoadParameters() {
   use_binary_output_ptr = &use_binary_output;
   sync_info_ptr = &sync_info;
 
-  // Check the IMU rate
-  if (imu_rate_ < 0) {
-    imu_rate_ = 100;
-    ROS_WARN("IMU_RATE is invalid. Reset to %d", imu_rate_);
-  }
-  if (800 % imu_rate_ != 0) {
-    imu_rate_ = 800 / (800 / imu_rate_);
-    ROS_WARN("IMU_RATE is invalid. Reset to %d", imu_rate_);
-  }
+  imu_rate_ = FixImuRate(imu_rate_);
 
   // Check the sync out rate
   if (enable_sync_out) {
@@ -199,8 +209,6 @@ bool ImuVn100::LoadParameters() {
       sync_out_pulse_width = 500000;
     }
   }
-
-  return true;
 }
 
 void ImuVn100::CreatePublishers() {
@@ -279,10 +287,7 @@ void ImuVn100::ErrorCodeParser(const VN_ERROR_CODE& error_code) {
 }
 
 bool ImuVn100::Initialize() {
-  // load parameters
-  if (!LoadParameters()) return false;
-
-  // Create publishers
+  LoadParameters();
   CreatePublishers();
 
   VN_ERROR_CODE error_code;
@@ -403,14 +408,14 @@ bool ImuVn100::Initialize() {
   return true;
 }
 
-void ImuVn100::Stream(bool enabled) {
+void ImuVn100::Stream(bool async) {
   VN_ERROR_CODE error_code;
 
   // Pause the device first
   error_code = vn100_pauseAsyncOutputs(&imu_, true);
   ErrorCodeParser(error_code);
 
-  if (enabled) {
+  if (async) {
     error_code = vn100_setAsynchronousDataOutputType(&imu_, VNASYNC_OFF, true);
     ErrorCodeParser(error_code);
 
