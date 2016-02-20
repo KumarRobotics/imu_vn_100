@@ -16,9 +16,6 @@
 
 #include <imu_vn_100/imu_vn_100.h>
 
-using namespace std;
-using namespace ros;
-
 namespace imu_vn_100 {
 
 // TODO: This is hacky!
@@ -27,7 +24,7 @@ namespace imu_vn_100 {
 //    be a class member function. So, some of
 //    the class members are made transparent
 //    here.
-string* frame_id_ptr;
+std::string* frame_id_ptr;
 bool* enable_mag_ptr;
 bool* enable_pres_ptr;
 bool* enable_temp_ptr;
@@ -138,11 +135,11 @@ constexpr int ImuVn100::kBaseImuRate;
 constexpr int ImuVn100::kDefaultImuRate;
 constexpr int ImuVn100::kDefaultSyncOutRate;
 
-ImuVn100::ImuVn100(const NodeHandle& pnh)
+ImuVn100::ImuVn100(const ros::NodeHandle& pnh)
     : pnh_(pnh),
-      port_(string("/dev/ttyUSB0")),
+      port_(std::string("/dev/ttyUSB0")),
       baudrate_(921600),
-      frame_id_(string("imu")),
+      frame_id_(std::string("imu")),
       sync_out_pulse_width_us(500000) {
   Initialize();
 }
@@ -183,8 +180,8 @@ void ImuVn100::FixSyncOutRate() {
 }
 
 void ImuVn100::LoadParameters() {
-  pnh_.param<string>("port", port_, std::string("/dev/ttyUSB0"));
-  pnh_.param<string>("frame_id", frame_id_, pnh_.getNamespace());
+  pnh_.param<std::string>("port", port_, std::string("/dev/ttyUSB0"));
+  pnh_.param<std::string>("frame_id", frame_id_, pnh_.getNamespace());
   pnh_.param("baudrate", baudrate_, 115200);
   pnh_.param("imu_rate", imu_rate_, kDefaultImuRate);
 
@@ -377,7 +374,8 @@ bool ImuVn100::Initialize() {
   }
 
   updater.reset(new diagnostic_updater::Updater());
-  string hw_id = string("vn100") + '-' + string(model_number_buffer);
+  std::string hw_id =
+      std::string("vn100") + '-' + std::string(model_number_buffer);
   updater->setHardwareID(hw_id);
   // updater->add("diagnostic_info", this,
   //    &ImuRosBase::updateDiagnosticInfo);
