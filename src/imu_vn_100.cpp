@@ -20,26 +20,6 @@ namespace imu_vn_100 {
 
 ImuVn100* hack_;
 
-// TODO: This is hacky!
-//    The official VN100 driver requires a
-//    plain C callback function, which cannot
-//    be a class member function. So, some of
-//    the class members are made transparent
-//    here.
-std::string* frame_id_ptr;
-bool* enable_mag_ptr;
-bool* enable_pres_ptr;
-bool* enable_temp_ptr;
-int* enable_sync_out_ptr;
-bool* use_binary_output_ptr;
-
-SyncInfo* sync_info_ptr;
-
-ros::Publisher* pub_imu_ptr;
-ros::Publisher* pub_mag_ptr;
-ros::Publisher* pub_pres_ptr;
-ros::Publisher* pub_temp_ptr;
-
 // boost::shared_ptr<diagnostic_updater::Updater> updater_ptr;
 // boost::shared_ptr<diagnostic_updater::TopicDiagnostic> imu_diag_ptr;
 // boost::shared_ptr<diagnostic_updater::TopicDiagnostic> mag_diag_ptr;
@@ -51,88 +31,6 @@ ros::Publisher* pub_temp_ptr;
 
 void AsyncListener(void* sender, VnDeviceCompositeData* data) {
   hack_->PublishData(*data);
-  /*
-  sensor_msgs::Imu imu;
-  imu.header.stamp = ros::Time::now();
-  imu.header.frame_id = *frame_id_ptr;
-
-  // TODO: get the covariance for the estimated attitude
-  // imu.orientation.x = data->quaternion.x;
-  // imu.orientation.y = data->quaternion.y;
-  // imu.orientation.z = data->quaternion.z;
-  // imu.orientation.w = data->quaternion.w;
-
-  if (*use_binary_output_ptr) {
-    imu.orientation.x = data->quaternion.x;
-    imu.orientation.y = data->quaternion.y;
-    imu.orientation.z = data->quaternion.z;
-    imu.orientation.w = data->quaternion.w;
-    // NOTE: The IMU angular velocity and linear acceleration outputs are
-    // swapped
-    imu.angular_velocity.x = data->accelerationUncompensated.c0;
-    imu.angular_velocity.y = data->accelerationUncompensated.c1;
-    imu.angular_velocity.z = data->accelerationUncompensated.c2;
-    imu.linear_acceleration.x = data->angularRateUncompensated.c0;
-    imu.linear_acceleration.y = data->angularRateUncompensated.c1;
-    imu.linear_acceleration.z = data->angularRateUncompensated.c2;
-  } else {
-    imu.linear_acceleration.x = data->acceleration.c0;
-    imu.linear_acceleration.y = data->acceleration.c1;
-    imu.linear_acceleration.z = data->acceleration.c2;
-    imu.angular_velocity.x = data->angularRate.c0;
-    imu.angular_velocity.y = data->angularRate.c1;
-    imu.angular_velocity.z = data->angularRate.c2;
-  }
-  pub_imu_ptr->publish(imu);
-  //  imu_diag_ptr->tick(imu.header.stamp);
-
-  if (*enable_mag_ptr) {
-    sensor_msgs::MagneticField field;
-    field.header.stamp = imu.header.stamp;
-    field.header.frame_id = *frame_id_ptr;
-    field.magnetic_field.x = data->magnetic.c0;
-    field.magnetic_field.y = data->magnetic.c1;
-    field.magnetic_field.z = data->magnetic.c2;
-    pub_mag_ptr->publish(field);
-    //    mag_diag_ptr->tick(imu.header.stamp);
-  }
-
-  if (*enable_pres_ptr) {
-    sensor_msgs::FluidPressure pressure;
-    pressure.header.stamp = imu.header.stamp;
-    pressure.header.frame_id = *frame_id_ptr;
-    pressure.fluid_pressure = data->pressure;
-    pub_pres_ptr->publish(pressure);
-    //    pres_diag_ptr->tick(imu.header.stamp);
-  }
-
-  if (*enable_temp_ptr) {
-    sensor_msgs::Temperature temperature;
-    temperature.header.stamp = imu.header.stamp;
-    temperature.header.frame_id = *frame_id_ptr;
-    temperature.temperature = data->temperature;
-    pub_temp_ptr->publish(temperature);
-    //    temp_diag_ptr->tick(imu.header.stamp);
-  }
-
-  if (*enable_sync_out_ptr > 0) {
-    if (sync_info_ptr->sync_count() == -1) {
-      // Initialize the count if never set
-      sync_info_ptr->set_sync_count(data->syncInCnt);
-    } else {
-      // Record the time when the sync counter increases
-      if (sync_info_ptr->sync_count() != data->syncInCnt) {
-        sync_info_ptr->set_sync_time(imu.header.stamp);
-        sync_info_ptr->set_sync_count(data->syncInCnt);
-      }
-    }
-  }
-  // ROS_INFO("Sync Count:    %lld", sync_info_ptr->getSyncCount());
-  // ROS_INFO("Sync Time :    %f", sync_info_ptr->getSyncTime().toSec());
-
-  // Update diagnostic info
-  //  updater_ptr->update();
-  */
 }
 
 constexpr int ImuVn100::kBaseImuRate;
@@ -199,14 +97,6 @@ void ImuVn100::LoadParameters() {
 
   pnh_.param("use_binary_output", use_binary_output_, true);
 
-  frame_id_ptr = &frame_id_;
-  enable_mag_ptr = &enable_mag_;
-  enable_pres_ptr = &enable_pres_;
-  enable_temp_ptr = &enable_temp_;
-  enable_sync_out_ptr = &sync_out_rate_;
-  use_binary_output_ptr = &use_binary_output_;
-  sync_info_ptr = &sync_info;
-
   FixImuRate();
   FixSyncOutRate();
 }
@@ -214,21 +104,14 @@ void ImuVn100::LoadParameters() {
 void ImuVn100::CreatePublishers() {
   // IMU data publisher
   pub_imu_ = pnh_.advertise<sensor_msgs::Imu>("imu", 1);
-  pub_imu_ptr = &pub_imu_;
-  // Magnetic field data publisher
   if (enable_mag_) {
     pub_mag_ = pnh_.advertise<sensor_msgs::MagneticField>("magnetic_field", 1);
-    pub_mag_ptr = &pub_mag_;
   }
-  // Pressure data publisher
   if (enable_pres_) {
     pub_pres_ = pnh_.advertise<sensor_msgs::FluidPressure>("pressure", 1);
-    pub_pres_ptr = &pub_pres_;
   }
-  // Temperature data publisher
   if (enable_temp_) {
     pub_temp_ = pnh_.advertise<sensor_msgs::Temperature>("temperature", 1);
-    pub_temp_ptr = &pub_temp_;
   }
 }
 
@@ -450,7 +333,7 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
     //    pres_diag_ptr->tick(imu.header.stamp);
   }
 
-  if (*enable_temp_ptr) {
+  if (enable_temp_) {
     sensor_msgs::Temperature temp_msg;
     temp_msg.header = imu_msg.header;
     temp_msg.temperature = data.temperature;
