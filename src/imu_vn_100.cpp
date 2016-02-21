@@ -67,13 +67,14 @@ void ImuVn100::SyncInfo::FixSyncRate() {
       rate = 800.0 / (ImuVn100::kBaseImuRate / rate);
       ROS_INFO("Set SYNC_OUT_RATE to %d", rate);
     }
-    skip_count = (std::floor(800.0 / skip_count + 0.5f)) - 1;
+    skip_count = (std::floor(800.0 / rate + 0.5f)) - 1;
 
-    if (pulse_width_us > 10000000) {
-      ROS_INFO("Sync out pulse with is over 10ms. Reset to 0.5ms");
-      pulse_width_us = 500000;
+    if (pulse_width_us > 10000) {
+      ROS_INFO("Sync out pulse with is over 10ms. Reset to 1ms");
+      pulse_width_us = 1000;
     }
   }
+  ROS_INFO("Sync out rate: %d", rate);
 }
 
 ImuVn100::ImuVn100(const ros::NodeHandle& pnh)
@@ -112,8 +113,8 @@ void ImuVn100::LoadParameters() {
   pnh_.param("enable_pres", enable_pres_, true);
   pnh_.param("enable_temp", enable_temp_, true);
 
-  pnh_.param("sync_out_rate", sync_info_.rate, kDefaultSyncOutRate);
-  pnh_.param("sync_out_pulse_width", sync_info_.pulse_width_us, 500000);
+  pnh_.param("sync_rate", sync_info_.rate, kDefaultSyncOutRate);
+  pnh_.param("sync_pulse_width_us", sync_info_.pulse_width_us, 1000);
 
   pnh_.param("binary_output", binary_output_, true);
 
@@ -188,7 +189,7 @@ void ImuVn100::Initialize() {
     VnEnsure(vn100_setSynchronizationControl(
         &imu_, SYNCINMODE_COUNT, SYNCINEDGE_RISING, 0, SYNCOUTMODE_IMU_START,
         SYNCOUTPOLARITY_POSITIVE, sync_info_.skip_count,
-        sync_info_.pulse_width_us, true));
+        sync_info_.pulse_width_us * 1000, true));
 
     if (!binary_output_) {
       ROS_INFO("Set Communication Protocal Control Register (id:30).");
