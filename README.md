@@ -91,6 +91,9 @@ Make sure you have ownership of the device in `/dev`.
 2. Why I have permission error during the initialization process of the driver?
 Most often, this is because the baud rate you set does not match the package size to be received. Try increase the baud rate.
 
+3. Why do I have a permission error after the firmware version is printed?
+In `ImuRosBase::enableIMUStream` by default the driver uses serial output 2 (using `BINARY_ASYNC_MODE_SERIAL_2` when calling `vn100_setBinaryOutput1Configuration`). However, the USB adapter which ships with the development kit is actually connected to serial output 1. Simply change the async mode to `BINARY_ASYNC_MODE_SERIAL_1` or `BINARY_ASYNC_MODE_SERIAL_1_AND_2` depending on your needs.
+
 ## Bug Report
 
 Perfer to open an issue. You can also send an E-mail to sunke.polyu@gmail.com.
@@ -106,4 +109,3 @@ Perfer to open an issue. You can also send an E-mail to sunke.polyu@gmail.com.
 * Angular velocity and linear acceleration are flipped when the device is set to binary output using `BG1_IMU`
 
 * Orientation and uncompensated IMU measurements cannot be acquired within a single setting using async output.
-
