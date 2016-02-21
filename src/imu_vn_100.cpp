@@ -19,7 +19,7 @@
 namespace imu_vn_100 {
 
 // LESS HACK IS STILL HACK
-ImuVn100* evil_global_;
+ImuVn100* imu_vn_100_ptr;
 
 using sensor_msgs::Imu;
 using sensor_msgs::MagneticField;
@@ -34,7 +34,7 @@ void FillImuMessage(sensor_msgs::Imu& imu_msg,
                     const VnDeviceCompositeData& data, bool binary_output);
 
 void AsyncListener(void* sender, VnDeviceCompositeData* data) {
-  evil_global_->PublishData(*data);
+  imu_vn_100_ptr->PublishData(*data);
 }
 
 constexpr int ImuVn100::kBaseImuRate;
@@ -83,7 +83,7 @@ ImuVn100::ImuVn100(const ros::NodeHandle& pnh)
       baudrate_(921600),
       frame_id_(std::string("imu")) {
   Initialize();
-  evil_global_ = this;
+  imu_vn_100_ptr = this;
 }
 
 ImuVn100::~ImuVn100() { Disconnect(); }
@@ -96,7 +96,6 @@ void ImuVn100::FixImuRate() {
 
   if (kBaseImuRate % imu_rate_ != 0) {
     int imu_rate_old = imu_rate_;
-    // TODO: THIS DOENS'T DO WHAT'S INTENDED
     imu_rate_ = kBaseImuRate / (kBaseImuRate / imu_rate_old);
     ROS_WARN("Imu rate %d cannot evenly decimate base rate %d, reset to %d",
              imu_rate_old, kBaseImuRate, imu_rate_);
@@ -316,7 +315,7 @@ void VnEnsure(const VnErrorCode& error_code) {
     case VNERR_PERMISSION_DENIED:
       throw std::runtime_error("VN: Permission denied");
     default:
-      ROS_WARN("We give no fuck");
+      ROS_WARN("Unhandled error type");
   }
 }
 
