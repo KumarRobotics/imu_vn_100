@@ -40,7 +40,7 @@ struct PubDiag {
   TopicDiagnosticPtr diag;
 
   template <typename MessageT>
-  void Create(ros::NodeHandle pnh, const std::string& topic, Updater& updater,
+  void Create(ros::NodeHandle& pnh, const std::string& topic, Updater& updater,
               double& rate) {
     pub = pnh.advertise<MessageT>(topic, 1);
     FrequencyStatusParam freq_param(&rate, &rate, 0.01, 10);
