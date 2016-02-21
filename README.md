@@ -4,18 +4,18 @@
 
 ![Picture of IMU](http://www.vectornav.com/images/default-source/products/vn-100-rugged.png?sfvrsn=2)
 
-The `imu_vn_100` package is a linux ROS driver for VN-100 Rugged IMU of [VECTORNAV](http://www.vectornav.com/). The package is developed based on the offical [SDK v0.3.2](http://www.vectornav.com/support/downloads) for Linux. The user manual for the device can be found [here](http://www.vectornav.com/docs/default-source/documentation/vn-100-documentation/UM001.pdf?sfvrsn=10).
+The `imu_vn_100` package is a linux ROS driver for VN-100 Rugged IMU of [VECTORNAV](http://www.vectornav.com/). The package is developed based on the official [SDK v0.3.2](http://www.vectornav.com/support/downloads) for Linux. The user manual for the device can be found [here](http://www.vectornav.com/docs/default-source/documentation/vn-100-documentation/UM001.pdf?sfvrsn=10).
 
 The package is tested on Ubuntu 14.04 with ROS indigo.
 
-Note that the offical SDK is modified within this package due to some bugs or unsupported features. Please carefully update the SDK, since the new SDK may not work with the provided software.
+Note that the official SDK is modified within this package due to some bugs or unsupported features. Please carefully update the SDK, since the new SDK may not work with the provided software.
 
 ## License
-* The license for the offical SDK is the MIT license which is included in the `include/imu_vn_100/vncpplib`
+* The license for the official SDK is the MIT license which is included in the `include/imu_vn_100/vncpplib`
 * The license for the other codes is Apache 2.0 whenever not specified.
 
-## Compling
-This is a Catkin package. Make sure the package is on `ROS_PACKAGE_PATH` after cloning the package to your workspace. And the normal procedure for compling a catkin package will work.
+## Compiling
+This is a Catkin package. Make sure the package is on `ROS_PACKAGE_PATH` after cloning the package to your workspace. And the normal procedure for compiling a catkin package will work.
 
 ```
 cd your_work_space
@@ -36,43 +36,39 @@ The frame ID entry for the sent messages.
 
 `baudrate` (`int`, `921600`)
 
-The baud rate of the serial port. The available baud rates can be checked on the user manual. It is suggested that the baud rate is kept at `921600` to ensure the high frequency transimission. The device will send `permission denied` error code if the baud rate cannot support the desired data package at the desired frequency.
+The baud rate of the serial port. The available baud rates can be checked on the user manual. It is suggested that the baud rate is kept at `921600` to ensure the high frequency transmission. The device will send `permission denied` error code if the baud rate cannot support the desired data package at the desired frequency.
 
 `imu_rate` (`int`, `200`)
 
 The rate of the IMU data.
 
 ```
-enable_magnetic_field (bool, default: true)
-enable_pressure       (bool, default: true)
-enable_temperature    (bool, default: true)
+enable_magn  (bool, default: true)
+enable_press (bool, default: true)
+enable_temp  (bool, default: true)
 ```
 
 Enable other possible messages that the driver is available to send. Note that the frequency of the data for each of these messages will be the same with the IMU data, if the topic is enabled.
 
-`enable_sync_out` (`bool`, `true`)
+`sync_out_rate` (`int`, `20`)
 
-Once set to true, the driver will record the time when a sync out trigger signal is sent. This is useful when the VN-100 IMU is to be synchronized with a camera. Please refer to the header file `imu_ros_base.h` for how to retrieve the recorded the time stamp.
-
-`sync_out_rate` (`int`, `30`)
-
-The rate of the sync out trigger signal. Note that the actual rate may not exactly match the provided rate, unless the provided rate is a divisor of 800.
+The rate of the sync out trigger signal. Note that the actual rate may not exactly match the provided rate, unless the provided rate is a divisor of 800. When `sync_out_rate` <= 0, it is disabled.
 
 **Published Topics**
 
-`imu\imu` (`sensor_msgs\Imu`)
+`imu/imu` (`sensor_msgs/Imu`)
 
 The message contains the uncompensated (for the definition of UNCOMPENSATED, please refer to the [user manual](http://www.vectornav.com/docs/default-source/documentation/vn-100-documentation/UM001.pdf?sfvrsn=10)) angular velocity and linear acceleration. Note that the orientation is not provided on this topic.
 
-`imu\magnetic_field` (`sensor_msgs\MagneticField`)
+`imu/magnetic_field` (`sensor_msgs/MagneticField`)
 
 Uncompensated magnetic field.
 
-`imu\pressure` (`sensor_msgs\FluidPressure`)
+`imu/pressure` (`sensor_msgs/FluidPressure`)
 
 Pressure.
 
-`imu\temperature` (`sensor_msgs\Temperature`)
+`imu/temperature` (`sensor_msgs/Temperature`)
 
 Temperature in degree Celsius
 
@@ -81,7 +77,7 @@ Temperature in degree Celsius
 With the provided launch file, do
 
 ```
-roslauch imu_vn_100 vn_100_cont.launch
+roslaunch imu_vn_100 vn_100_cont.launch
 ```
 
 ## FAQ
@@ -93,9 +89,9 @@ Most often, this is because the baud rate you set does not match the package siz
 
 ## Bug Report
 
-Perfer to open an issue. You can also send an E-mail to sunke.polyu@gmail.com.
+Prefer to open an issue. You can also send an E-mail to sunke.polyu@gmail.com.
 
-## Bugs or Features Required of the Offical SDK
+## Bugs or Features Required of the Official SDK
 
 * [Solved] Define macros for options to set synchronization register and communication control register. (vndevice.h)
 
@@ -106,4 +102,3 @@ Perfer to open an issue. You can also send an E-mail to sunke.polyu@gmail.com.
 * Angular velocity and linear acceleration are flipped when the device is set to binary output using `BG1_IMU`
 
 * Orientation and uncompensated IMU measurements cannot be acquired within a single setting using async output.
-
