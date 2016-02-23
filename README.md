@@ -50,9 +50,9 @@ enable_temp  (bool, default: true)
 
 Enable other possible messages that the driver is available to send. Note that the frequency of the data for each of these messages will be the same with the IMU data, if the topic is enabled.
 
-`sync_out_rate` (`int`, `20`)
+`sync_rate` (`int`, `20`)
 
-The rate of the sync out trigger signal. Note that the actual rate may not exactly match the provided rate, unless the provided rate is a divisor of 800. When `sync_out_rate` <= 0, it is disabled.
+The rate of the sync out trigger signal. Note that the actual rate may not exactly match the provided rate, unless the provided rate is a divisor of 800. When `sync_rate` <= 0, it is disabled.
 
 **Published Topics**
 
