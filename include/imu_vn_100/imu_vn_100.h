@@ -35,6 +35,9 @@ using diagnostic_updater::FrequencyStatusParam;
 using diagnostic_updater::TimeStampStatusParam;
 using TopicDiagnosticPtr = boost::shared_ptr<TopicDiagnostic>;
 
+// NOTE: there is a DiagnosedPublisher inside diagnostic_updater
+// but it does not have a default constructor thus we use this simple one
+// instead, which has the same functionality
 struct PubDiag {
   ros::Publisher pub;
   TopicDiagnosticPtr diag;
@@ -51,8 +54,8 @@ struct PubDiag {
 
   template <typename MessageT>
   void Publish(const MessageT& message) {
-    pub.publish(message);
     diag->tick(message.header.stamp);
+    pub.publish(message);
   }
 };
 
