@@ -29,27 +29,24 @@
 
 namespace imu_vn_100 {
 
-using diagnostic_updater::Updater;
-using diagnostic_updater::TopicDiagnostic;
-using diagnostic_updater::FrequencyStatusParam;
-using diagnostic_updater::TimeStampStatusParam;
-using TopicDiagnosticPtr = boost::shared_ptr<TopicDiagnostic>;
+namespace du = diagnostic_updater;
+using TopicDiagnosticPtr = boost::shared_ptr<du::TopicDiagnostic>;
 
 // NOTE: there is a DiagnosedPublisher inside diagnostic_updater
 // but it does not have a default constructor thus we use this simple one
 // instead, which has the same functionality
-struct PubDiag {
+struct DiagnosedPublisher {
   ros::Publisher pub;
   TopicDiagnosticPtr diag;
 
   template <typename MessageT>
-  void Create(ros::NodeHandle& pnh, const std::string& topic, Updater& updater,
-              double& rate) {
+  void Create(ros::NodeHandle& pnh, const std::string& topic,
+              du::Updater& updater, double& rate) {
     pub = pnh.advertise<MessageT>(topic, 1);
-    FrequencyStatusParam freq_param(&rate, &rate, 0.01, 10);
-    TimeStampStatusParam time_param(0, 0.5 / rate);
-    diag = boost::make_shared<TopicDiagnostic>(topic, updater, freq_param,
-                                               time_param);
+    du::FrequencyStatusParam freq_param(&rate, &rate, 0.01, 10);
+    du::TimeStampStatusParam time_param(0, 0.5 / rate);
+    diag = boost::make_shared<du::TopicDiagnostic>(topic, updater, freq_param,
+                                                   time_param);
   }
 
   template <typename MessageT>
@@ -95,6 +92,7 @@ class ImuVn100 {
     ros::Time time;
 
     int rate = -1;
+    double rate_double = -1;
     int pulse_width_us = 1000;
     int skip_count = 0;
 
@@ -123,12 +121,12 @@ class ImuVn100 {
 
   SyncInfo sync_info_;
 
-  Updater updater_;
-  PubDiag pd_imu_, pd_mag_, pd_pres_, pd_temp_;
+  du::Updater updater_;
+  DiagnosedPublisher pd_imu_, pd_mag_, pd_pres_, pd_temp_;
 
   void FixImuRate();
   void LoadParameters();
-  void CreatePubDiags();
+  void CreateDiagnosedPublishers();
 };
 
 // Just don't like type that is ALL CAP

@@ -66,16 +66,21 @@ void ImuVn100::SyncInfo::FixSyncRate() {
   // Check the sync out rate
   if (SyncEnabled()) {
     if (ImuVn100::kBaseImuRate % rate != 0) {
-      rate = 800.0 / (ImuVn100::kBaseImuRate / rate);
+      rate = ImuVn100::kBaseImuRate / (ImuVn100::kBaseImuRate / rate);
       ROS_INFO("Set SYNC_OUT_RATE to %d", rate);
     }
-    skip_count = (std::floor(800.0 / rate + 0.5f)) - 1;
+    skip_count =
+        (std::floor(ImuVn100::kBaseImuRate / static_cast<double>(rate) +
+                    0.5f)) -
+        1;
 
     if (pulse_width_us > 10000) {
       ROS_INFO("Sync out pulse with is over 10ms. Reset to 1ms");
       pulse_width_us = 1000;
     }
+    rate_double = rate;
   }
+
   ROS_INFO("Sync out rate: %d", rate);
 }
 
@@ -123,7 +128,7 @@ void ImuVn100::LoadParameters() {
   sync_info_.FixSyncRate();
 }
 
-void ImuVn100::CreatePubDiags() {
+void ImuVn100::CreateDiagnosedPublishers() {
   imu_rate_double_ = imu_rate_;
   pd_imu_.Create<Imu>(pnh_, "imu", updater_, imu_rate_double_);
   if (enable_mag_) {
@@ -201,7 +206,8 @@ void ImuVn100::Initialize() {
     }
   }
 
-  CreatePubDiags();
+  CreateDiagnosedPublishers();
+
   auto hardware_id = std::string("vn100-") + std::string(model_number_buffer) +
                      std::string(serial_number_buffer);
   updater_.setHardwareID(hardware_id);
