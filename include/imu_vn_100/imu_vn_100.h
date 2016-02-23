@@ -88,7 +88,7 @@ class ImuVn100 {
   void Configure();
 
   struct SyncInfo {
-    unsigned count = -1;
+    unsigned count = 0;
     ros::Time time;
 
     int rate = -1;

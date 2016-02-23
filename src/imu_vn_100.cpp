@@ -47,7 +47,7 @@ void ImuVn100::SyncInfo::Update(const unsigned sync_count,
 
   count = sync_count;
   time = sync_time;
-  if (count == -1) {
+  if (count == 0) {
     // Initialize the count if never set
     count = sync_count;
     time = sync_time;
