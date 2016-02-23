@@ -60,9 +60,11 @@ void ImuVn100::SyncInfo::Update(const unsigned sync_count,
   }
 }
 
+bool ImuVn100::SyncInfo::SyncEnabled() const { return rate > 0; }
+
 void ImuVn100::SyncInfo::FixSyncRate() {
   // Check the sync out rate
-  if (rate > 0) {
+  if (SyncEnabled()) {
     if (ImuVn100::kBaseImuRate % rate != 0) {
       rate = 800.0 / (ImuVn100::kBaseImuRate / rate);
       ROS_INFO("Set SYNC_OUT_RATE to %d", rate);
@@ -183,7 +185,7 @@ void ImuVn100::Initialize() {
   VnEnsure(vn100_getFirmwareVersion(&imu_, firmware_version_buffer, 30));
   ROS_INFO("Firmware version: %s", firmware_version_buffer);
 
-  if (sync_info_.rate > 0) {
+  if (sync_info_.SyncEnabled()) {
     ROS_INFO("Set Synchronization Control Register (id:32).");
     VnEnsure(vn100_setSynchronizationControl(
         &imu_, SYNCINMODE_COUNT, SYNCINEDGE_RISING, 0, SYNCOUTMODE_IMU_START,

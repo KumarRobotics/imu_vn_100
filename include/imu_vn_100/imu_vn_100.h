@@ -97,6 +97,7 @@ class ImuVn100 {
 
     void Update(const unsigned sync_count, const ros::Time& sync_time);
     void FixSyncRate();
+    bool SyncEnabled() const;
   };
 
   const SyncInfo sync_info() const { return sync_info_; }
