@@ -45,8 +45,6 @@ void ImuVn100::SyncInfo::Update(const unsigned sync_count,
                                 const ros::Time& sync_time) {
   if (rate <= 0) return;
 
-  count = sync_count;
-  time = sync_time;
   if (count == 0) {
     // Initialize the count if never set
     count = sync_count;
