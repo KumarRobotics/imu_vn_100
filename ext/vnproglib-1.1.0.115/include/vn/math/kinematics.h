@@ -84,7 +84,7 @@ public:
 	/// \return The \ref yaw value in degrees.
 	T yawDegs() const
 	{
-		return math::rad2deg(Yyaw);
+        return math::rad2deg(yaw);
 	}
 
 	/// \brief Returns the \ref pitch value in degrees.

@@ -1,7 +1,9 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(imu_vn_100)
 
+# build the vnproflib first
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/ext/vnproglib-1.1.0.115)
+
 add_definitions("-std=c++11")
 
 find_package(catkin REQUIRED COMPONENTS
@@ -20,19 +22,24 @@ catkin_package(
 
 include_directories(
   include
-  vncpplib/include
+#  vncpplib/include
   ext/vnproglib-1.1.0.115/include
   ${catkin_INCLUDE_DIRS}
 )
 
+#add_library(imu_vn_100
+#  vncpplib/src/arch/linux/vncp_services.c
+#  vncpplib/src/vndevice.c
+#  vncpplib/src/vn100.c
+#  src/imu_vn_100.cpp
+#)
+
 add_library(imu_vn_100
-  vncpplib/src/arch/linux/vncp_services.c
-  vncpplib/src/vndevice.c
-  vncpplib/src/vn100.c
-  src/imu_vn_100.cpp
+    src/imu_vn_100.cpp
 )
 
 target_link_libraries(imu_vn_100
+  vnproglib
   ${catkin_LIBRARIES}
 )
 

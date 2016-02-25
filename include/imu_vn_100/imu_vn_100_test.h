@@ -1,7 +1,5 @@
 /*
- * Copyright [2016]
- * Authors: [Ke Sun]
- *          Andre Phu-Van Nguyen <andre-phu-van.nguyen@polymtl.ca>
+ * Copyright [2015] [Ke Sun]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +24,8 @@
 #include <sensor_msgs/MagneticField.h>
 #include <sensor_msgs/FluidPressure.h>
 #include <sensor_msgs/Temperature.h>
+
+#include <vn100.h>
 
 namespace imu_vn_100 {
 
@@ -75,7 +75,7 @@ class ImuVn100 {
 
   void Stream(bool async = true);
 
-//  void PublishData(const VnDeviceCompositeData& data);
+  void PublishData(const VnDeviceCompositeData& data);
 
   void RequestOnce();
 
@@ -105,7 +105,7 @@ class ImuVn100 {
 
  private:
   ros::NodeHandle pnh_;
-  //Vn100 imu_;
+  Vn100 imu_;
 
   // Settings
   std::string port_;
@@ -130,8 +130,8 @@ class ImuVn100 {
 };
 
 // Just don't like type that is ALL CAP
-//using VnErrorCode = VN_ERROR_CODE;
-//void VnEnsure(const VnErrorCode& error_code);
+using VnErrorCode = VN_ERROR_CODE;
+void VnEnsure(const VnErrorCode& error_code);
 
 }  // namespace imu_vn_100
 
