@@ -15,31 +15,19 @@
  */
 
 #include <ros/ros.h>
-#include <ros/node_handle.h>
-#include <imu_vn_100/imu_ros_base.h>
+#include <imu_vn_100/imu_vn_100.h>
 
 using namespace imu_vn_100;
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   ros::init(argc, argv, "imu_vn_100");
-  ros::NodeHandle nh("~");
+  ros::NodeHandle pnh("~");
 
-  // new instance of the IMU
-  ImuRosBase imu(nh);
-
-  // Initialize the device
-  if (!imu.initialize()) {
-    ROS_ERROR("Cannot initialize the device");
-    return -1;
+  try {
+    ImuVn100 imu(pnh);
+    imu.Stream(true);
+    ros::spin();
+  } catch (const std::exception& e) {
+    ROS_INFO("%s: %s", pnh.getNamespace().c_str(), e.what());
   }
-
-  // Enable the continuous streaming
-  imu.enableIMUStream(true);
-
-  ros::spin();
-
-  // Disconnect the device
-  imu.disconnect();
-
-  return 0;
 }
