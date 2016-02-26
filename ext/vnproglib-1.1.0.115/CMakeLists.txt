@@ -171,7 +171,7 @@ endif()
 #			LIBRARY_OUTPUT_DIRECTORY "../vnpy")
 #	endif()
 #else()
-add_library(vnproglib
+add_library(vnproglib SHARED
     ${top_sources}
     ${math_sources}
     ${util_sources}
