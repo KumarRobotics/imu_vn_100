@@ -27,6 +27,9 @@
 #include <sensor_msgs/FluidPressure.h>
 #include <sensor_msgs/Temperature.h>
 
+#include "vn/sensors/sensors.h"
+#include "vn/protocol/uart/types.h"
+
 namespace imu_vn_100 {
 
 namespace du = diagnostic_updater;
@@ -105,12 +108,13 @@ class ImuVn100 {
 
  private:
   ros::NodeHandle pnh_;
-  //Vn100 imu_;
+  vn::sensors::VnSensor imu_;
 
   // Settings
   std::string port_;
   int baudrate_ = 921600;
   int imu_rate_ = kDefaultImuRate;
+  vn::protocol::uart::AsyncMode vn_serial_output_ = vn::protocol::uart::ASYNCMODE_PORT1;
   double imu_rate_double_ = kDefaultImuRate;
   std::string frame_id_;
 
