@@ -78,7 +78,7 @@ class ImuVn100 {
 
   void Stream(bool async = true);
 
-//  void PublishData(const VnDeviceCompositeData& data);
+  void PublishData(vn::protocol::uart::Packet& p);
 
   void RequestOnce();
 
