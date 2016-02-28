@@ -408,6 +408,11 @@ void asciiOrBinaryAsyncMessageReceived(void* userData, vn::protocol::uart::Packe
         // Not the type of binary packet we are expecting.
         return;
 
+    if (!p.isValid()) {
+        ROS_WARN("Vn: Invalid packet received. CRC or checksum failed.");
+        return;
+    }
+
     imu->PublishData(p);
 }
 
