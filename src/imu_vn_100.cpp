@@ -41,15 +41,6 @@ void RosQuaternionFromVnVector4(geometry_msgs::Quaternion& ros_quat,
                                 const vn::math::vec4f& vn_vec4);
 
 /**
- * @brief FillImuMessage
- * @param imu_msg
- * @param p
- * @param binary_output
- */
-void FillImuMessage(sensor_msgs::Imu& imu_msg, vn::protocol::uart::Packet& p,
-                    bool binary_output);
-
-/**
  * @brief asciiOrBinaryAsyncMessageReceived
  * @param userData
  * @param p
@@ -112,7 +103,6 @@ ImuVn100::ImuVn100(const ros::NodeHandle& pnh)
       baudrate_(921600),
       frame_id_(std::string("imu")) {
   Initialize();
-  // TODO pointer hack
 }
 
 ImuVn100::~ImuVn100() { Disconnect(); }
@@ -145,6 +135,12 @@ void ImuVn100::LoadParameters() {
   pnh_.param("sync_pulse_width_us", sync_info_.pulse_width_us, 1000);
 
   pnh_.param("binary_output", binary_output_, true);
+
+  if (!binary_output_ && (enable_pres_ | enable_temp_)) {
+    ROS_ERROR("VN: Ascii mode cannot support pressure and temp.");
+    enable_pres_ = enable_temp_ = false;
+  }
+
   int vn_serial_output_tmp = 4;  // init on invalid number
   pnh_.param("vn_serial_output", vn_serial_output_tmp, 1);
   switch (vn_serial_output_tmp) {
@@ -277,7 +273,14 @@ void ImuVn100::Stream(bool async) {
       imu_.writeBinaryOutput1(bor, true);
     } else {
       // Set the ASCII output data type and data rate
-      imu_.writeAsyncDataOutputType(VNIMU, true);
+      vn::sensors::BinaryOutputRegister bor(
+          vn_serial_output_, 0, COMMONGROUP_NONE, TIMEGROUP_NONE, IMUGROUP_NONE,
+          GPSGROUP_NONE, ATTITUDEGROUP_NONE, INSGROUP_NONE);
+      // disable all the binary outputs
+      imu_.writeBinaryOutput1(bor, true);
+      imu_.writeBinaryOutput2(bor, true);
+      imu_.writeBinaryOutput3(bor, true);
+      imu_.writeAsyncDataOutputType(VNQMR, true);
     }
 
     // add a callback function for new data event
@@ -310,13 +313,34 @@ void ImuVn100::PublishData(vn::protocol::uart::Packet& p) {
   imu_msg.header.stamp = ros::Time::now();
   imu_msg.header.frame_id = frame_id_;
 
-  FillImuMessage(imu_msg, p, binary_output_);
+  vn::math::vec4f quaternion;
+  vn::math::vec3f linear_accel;
+  vn::math::vec3f angular_rate;
+  vn::math::vec3f magnetometer;
+  if (binary_output_) {
+    // Note: With this library, we are responsible for extracting the data
+    // in the appropriate order! Need to refer to manual and to how we
+    // configured the common output group
+    quaternion = p.extractVec4f();  // COMMONGROUP_QUATERNION
+    // NOTE: The IMU angular velocity and linear acceleration outputs are
+    // swapped. And also why are they different?
+    linear_accel = p.extractVec3f();  // COMMONGROUP_IMU
+    angular_rate = p.extractVec3f();  // COMMONGROUP_IMU
+    magnetometer = p.extractVec3f();  // COMMONGROUP_MAGPRES
+  } else {
+    // In ascii mode, linear acceleration and angular velocity are NOT swapped
+    p.parseVNQMR(&quaternion, &magnetometer, &linear_accel, &angular_rate);
+  }
+
+  RosQuaternionFromVnVector4(imu_msg.orientation, quaternion);
+  RosVector3FromVnVector3(imu_msg.angular_velocity, angular_rate);
+  RosVector3FromVnVector3(imu_msg.linear_acceleration, linear_accel);
+
   pd_imu_.Publish(imu_msg);
 
   if (enable_mag_) {
     sensor_msgs::MagneticField mag_msg;
     mag_msg.header = imu_msg.header;
-    vn::math::vec3f magnetometer = p.extractVec3f();  // COMMONGROUP_MAGPRES
     RosVector3FromVnVector3(mag_msg.magnetic_field, magnetometer);
     pd_mag_.Publish(mag_msg);
   }
@@ -358,37 +382,33 @@ void RosQuaternionFromVnVector4(geometry_msgs::Quaternion& ros_quat,
   ros_quat.w = vn_vec4[3];
 }
 
-void FillImuMessage(sensor_msgs::Imu& imu_msg, vn::protocol::uart::Packet& p,
-                    bool binary_output) {
-  if (binary_output) {
-    // Note: With this library, we are responsible for extracting the data
-    // in the appropriate order! Need to refer to manual and to how we
-    // configured the common output group
-    vn::math::vec4f quaternion = p.extractVec4f();  // COMMONGROUP_QUATERNION
-    // NOTE: The IMU angular velocity and linear acceleration outputs are
-    // swapped. And also why are they different?
-    vn::math::vec3f linear_accel = p.extractVec3f();  // COMMONGROUP_IMU
-    vn::math::vec3f angular_rate = p.extractVec3f();  // COMMONGROUP_IMU
-
-    RosQuaternionFromVnVector4(imu_msg.orientation, quaternion);
-    RosVector3FromVnVector3(imu_msg.angular_velocity, angular_rate);
-    RosVector3FromVnVector3(imu_msg.linear_acceleration, linear_accel);
-  } else {
-    // TODO
-  }
-}
-
 void asciiOrBinaryAsyncMessageReceived(void* userData,
                                        vn::protocol::uart::Packet& p,
                                        size_t index) {
   using namespace vn::protocol::uart;
   ImuVn100* imu = (ImuVn100*)userData;
-  if (!p.isCompatible((COMMONGROUP_QUATERNION | COMMONGROUP_IMU |
-                       COMMONGROUP_MAGPRES | COMMONGROUP_SYNCINCNT),
-                      TIMEGROUP_NONE, IMUGROUP_NONE, GPSGROUP_NONE,
-                      ATTITUDEGROUP_NONE, INSGROUP_NONE))
-    // Not the type of binary packet we are expecting.
-    return;
+
+  if (imu->IsBinaryOutput()) {
+    if (!p.isCompatible((COMMONGROUP_QUATERNION | COMMONGROUP_IMU |
+                         COMMONGROUP_MAGPRES | COMMONGROUP_SYNCINCNT),
+                        TIMEGROUP_NONE, IMUGROUP_NONE, GPSGROUP_NONE,
+                        ATTITUDEGROUP_NONE, INSGROUP_NONE)) {
+      // Not the type of binary packet we are expecting.
+      ROS_WARN("VN: Received malformatted binary packet.");
+      return;
+    }
+  } else {
+    // ascii format
+    if (p.type() != vn::protocol::uart::Packet::TYPE_ASCII) {
+      ROS_WARN("VN: Requested ascii, but got wrong type.");
+      return;
+    }
+
+    if (p.determineAsciiAsyncType() != vn::protocol::uart::VNQMR) {
+      ROS_WARN("VN: Wrong ascii format received.");
+      return;
+    }
+  }
 
   if (!p.isValid()) {
     ROS_WARN("Vn: Invalid packet received. CRC or checksum failed.");

@@ -106,6 +106,7 @@ class ImuVn100 {
 
   const SyncInfo sync_info() const { return sync_info_; }
 
+  bool IsBinaryOutput() { return binary_output_; }
  private:
   ros::NodeHandle pnh_;
   vn::sensors::VnSensor imu_;
