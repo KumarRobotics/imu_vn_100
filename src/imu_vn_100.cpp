@@ -413,7 +413,58 @@ void asciiOrBinaryAsyncMessageReceived(void* userData, vn::protocol::uart::Packe
 
 void errorMessageReceived(void* userData, vn::protocol::uart::Packet& p,
                           size_t index) {
+    using vn::protocol::uart::SensorError;
     ImuVn100* imu = (ImuVn100*) userData;
+    SensorError se = p.parseError();
+
+    if (se == 0) return;
+
+    switch (se) {
+    case SensorError::ERR_HARD_FAULT:
+        ROS_ERROR("VN: Hard fault. Processor will force restart.");
+        break;
+    case SensorError::ERR_SERIAL_BUFFER_OVERFLOW:	///< Serial buffer overflow.
+        // We tried sending some kind of crazy long command which is impossible
+        // Throw because the developper shouldn't do this.
+        throw std::runtime_error("VN: Serial buffer overflow.");
+        break;
+    case SensorError::ERR_INVALID_CHECKSUM:          ///< Invalid checksum.
+        ROS_WARN("VN: Invalid checksum on packet %s", std::to_string(index).c_str());
+        break;
+    case SensorError::ERR_INVALID_COMMAND:			///< Invalid command.
+        ROS_WARN("VN: Invalid command on packet %s", std::to_string(index).c_str());
+        break;
+    case SensorError::ERR_NOT_ENOUGH_PARAMETERS:		///< Not enough parameters.
+        ROS_WARN("VN: Not enough parameters.");
+        break;
+    case SensorError::ERR_TOO_MANY_PARAMETERS:		///< Too many parameters.
+        ROS_WARN("VN: Too many parameters.");
+        break;
+    case SensorError::ERR_INVALID_PARAMETER:			///< Invalid parameter.
+        ROS_WARN("VN: Invalid parameter.");
+        break;
+    case SensorError::ERR_INVALID_REGISTER:			///< Invalid register.
+        ROS_WARN("VN: Invalid register.");
+        break;
+    case SensorError::ERR_UNAUTHORIZED_ACCESS:		///< Unauthorized access.
+        ROS_WARN("VN: Unauthorized access to a register.");
+        break;
+    case SensorError::ERR_WATCHDOG_RESET:			///< Watchdog reset
+        ROS_WARN("VN: Watchdog reset has occured. VN should have restarted within 50 ms.");
+        break;
+    case SensorError::ERR_OUTPUT_BUFFER_OVERFLOW:	///< Output buffer overflow.
+        ROS_WARN("VN: Output buffer overflow.");
+        break;
+    case SensorError::ERR_INSUFFICIENT_BAUD_RATE:	///< Insufficient baud rate.
+        ROS_WARN("VN: Insufficient baud rate for requested async data output and rate.");
+        break;
+    case SensorError::ERR_ERROR_BUFFER_OVERFLOW:		///< Error buffer overflow.
+        ROS_WARN("VN: System error buffer overflow.");
+        break;
+    default:
+        throw std::runtime_error("VN: Unknown error code " + std::to_string(se));
+        break;
+    }
 }
 
 } // end namespace
