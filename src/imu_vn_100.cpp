@@ -198,16 +198,16 @@ void ImuVn100::Initialize() {
     ROS_INFO("Set serial baudrate to %d", baudrate_);
     imu_.writeSerialBaudRate(baudrate_, true);
 
-    ROS_DEBUG("Disconnecting the device");
+    ROS_INFO("Disconnecting the device");
     imu_.disconnect();
     ros::Duration(0.5).sleep();
   } catch (std::exception except) {
-    ROS_DEBUG("Failed to open device with default baudrate with exception: %s",
+    ROS_INFO("Failed to open device with default baudrate with exception: %s",
               except.what());
   }
 
   // Open with the desired baud rate
-  ROS_DEBUG("Reconnecting to device");
+  ROS_INFO("Reconnecting to device");
   imu_.connect(port_, baudrate_);
   ros::Duration(0.5).sleep();
   ROS_INFO("Connected to device at %s", port_.c_str());
@@ -306,7 +306,7 @@ void ImuVn100::Resume(bool need_reply) {}
 
 void ImuVn100::Idle(bool need_reply) {}
 
-void ImuVn100::Disconnect() {}
+void ImuVn100::Disconnect() { imu_.disconnect(); }
 
 void ImuVn100::PublishData(vn::protocol::uart::Packet& p) {
   sensor_msgs::Imu imu_msg;

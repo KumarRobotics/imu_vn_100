@@ -9,7 +9,7 @@
 
     <!-- Sync out settings -->
     <!-- to disable this just set it to < 0 -->
-    <arg name="sync_rate" default="0"/>
+    <arg name="sync_rate" default="30"/>
     <arg name="sync_pulse_width_us" default="1000"/>
 
     <arg name="binary_output" default="true"/>
@@ -25,7 +25,7 @@
         <param name="frame_id" type="string" value="$(arg frame_id)"/>
         <param name="imu_rate" type="int" value="$(arg imu_rate)"/>
         <param name="binary_output" type="bool" value="$(arg binary_output)"/>
-        <param name="vn_serial_output" type="int" value="1" />
+        <param name="vn_serial_output" type="int" value="2" />
         <param name="enable_mag" type="bool" value="$(arg enable_mag)"/>
         <param name="enable_pres" type="bool" value="$(arg enable_pres)"/>
         <param name="enable_temp" type="bool" value="$(arg enable_temp)"/>

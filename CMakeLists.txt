@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(imu_vn_100)
 
-# build the vnproflib first
+# build the vnproglib first
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/ext/vnproglib-1.1.0.115)
 
 add_definitions("-std=c++11")

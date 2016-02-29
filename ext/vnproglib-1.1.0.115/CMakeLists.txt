@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 2.8.4)
 
+project(vnproglib)
+
 set(CMAKE_SUPPRESS_REGENERATION TRUE)
 add_definitions(-DPL150)
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
@@ -13,6 +15,15 @@ option(BUILD_BENCHMARKS "Build benchmarks." OFF)
 option(PYTHON "Build for Python library." OFF)
 option(BUILD_GRAPHICS "Build in the graphics library." OFF)
 #option(INTERNAL "Build internal portions of the library." OFF)
+
+find_package(catkin REQUIRED)
+
+catkin_package(
+  INCLUDE_DIRS include
+  LIBRARIES ${PROJECT_NAME}
+  CATKIN_DEPENDS
+  DEPENDS
+)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
