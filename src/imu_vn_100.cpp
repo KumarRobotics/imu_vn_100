@@ -263,6 +263,10 @@ void ImuVn100::Stream(bool async) {
       // Set the binary output data type and data rate
       uint16_t grp1 = BG1_QTN | BG1_SYNC_IN_CNT;
       std::list<std::string> sgrp1 = {"BG1_QTN", "BG1_SYNC_IN_CNT"};
+      if (enable_rpy_) {
+        grp1 |= BG1_YPR;
+        sgrp1.push_back("BG1_YPR");
+      }
       uint16_t grp3 = BG3_NONE;
       std::list<std::string> sgrp3;
       uint16_t grp5 = BG5_NONE;
@@ -383,15 +387,13 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
   pd_imu_.Publish(imu_msg);
 
   if (enable_rpy_) {
-    tf::Matrix3x3 rot(tf::Quaternion(
-        imu_msg.orientation.x,
-        imu_msg.orientation.y,
-        imu_msg.orientation.z,
-        imu_msg.orientation.w
-    ));
     geometry_msgs:Vector3Stamped rpy_msg;
-    rpy_msg.header = imu_msg.header;
-    rot.getRPY(rpy_msg.vector.x, rpy_msg.vector.y, rpy_msg.vector.z);
+    rpy_msg.vector.z = data.ypr.yaw * M_PI/180.0;
+    rpy_msg.vector.y = data.ypr.pitch * M_PI/180.0;
+    rpy_msg.vector.x = data.ypr.roll * M_PI/180.0;
+    if  (tf_ned_to_enu_) {
+        rpy_msg.vector = WorldNEDtoENU(rpy_msg.vector);
+    }
     pd_rpy_.Publish(rpy_msg);
   }
 
@@ -482,10 +484,10 @@ geometry_msgs::Quaternion WorldNEDtoENU(const geometry_msgs::Quaternion& ned) {
   // (w x y z)->(y  x -z w)
   // https://github.com/ros-drivers/um7/blob/indigo-devel/src/main.cpp#L217
   geometry_msgs::Quaternion enu;
+  enu.w = ned.y;
   enu.x = ned.x;
   enu.y = -ned.z;
   enu.z = ned.w;
-  enu.w = ned.y;
   return enu;
 }
 
@@ -504,10 +506,10 @@ geometry_msgs::Quaternion BodyFixedNEDtoENU(
   // (w x y z)->(x -y -z w)
   // https://github.com/ros-drivers/um7/blob/indigo-devel/src/main.cpp#L217
   geometry_msgs::Quaternion enu;
+  enu.w = ned.x;
   enu.x = -ned.y;
   enu.y = -ned.z;
   enu.z = ned.w;
-  enu.w = ned.x;
   return enu;
 }
 
