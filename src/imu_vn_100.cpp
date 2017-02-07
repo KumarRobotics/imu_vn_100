@@ -388,6 +388,7 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
 
   if (enable_rpy_) {
     geometry_msgs:Vector3Stamped rpy_msg;
+    rpy_msg.header= imu_msg.header;
     rpy_msg.vector.z = data.ypr.yaw * M_PI/180.0;
     rpy_msg.vector.y = data.ypr.pitch * M_PI/180.0;
     rpy_msg.vector.x = data.ypr.roll * M_PI/180.0;
