@@ -130,6 +130,12 @@ class ImuVn100 {
   int vpe_heading_mode_ = 1;
   int vpe_filtering_mode_ = 1;
   int vpe_tuning_mode_ = 1;
+  VnVector3 vpe_mag_base_tuning_;
+  VnVector3 vpe_mag_adaptive_tuning_;
+  VnVector3 vpe_mag_adaptive_filtering_;
+  VnVector3 vpe_accel_base_tuning_;
+  VnVector3 vpe_accel_adaptive_tuning_;
+  VnVector3 vpe_accel_adaptive_filtering_;
 
   SyncInfo sync_info_;
 

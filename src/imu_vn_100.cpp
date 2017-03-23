@@ -129,10 +129,31 @@ void ImuVn100::LoadParameters() {
 
   pnh_.param("imu_compensated", imu_compensated_, false);
 
-  pnh_.param("vpe_enable", vpe_enable_, true);
-  pnh_.param("vpe_heading_mode", vpe_heading_mode_, 1);
-  pnh_.param("vpe_filtering_mode", vpe_filtering_mode_, 1);
-  pnh_.param("vpe_tuning_mode", vpe_tuning_mode_, 1);
+  pnh_.param("vpe/enable", vpe_enable_, true);
+
+  pnh_.param("vpe/heading_mode", vpe_heading_mode_, 1);
+  pnh_.param("vpe/filtering_mode", vpe_filtering_mode_, 1);
+  pnh_.param("vpe/tuning_mode", vpe_tuning_mode_, 1);
+
+  pnh_.param("vpe/mag_tuning/base_tuning/x", vpe_mag_base_tuning_.c0, 4.0);
+  pnh_.param("vpe/mag_tuning/base_tuning/y", vpe_mag_base_tuning_.c1, 4.0);
+  pnh_.param("vpe/mag_tuning/base_tuning/z", vpe_mag_base_tuning_.c2, 4.0);
+  pnh_.param("vpe/mag_tuning/adaptive_tuning/x", vpe_mag_adaptive_tuning_.c0, 5.0);
+  pnh_.param("vpe/mag_tuning/adaptive_tuning/y", vpe_mag_adaptive_tuning_.c1, 5.0);
+  pnh_.param("vpe/mag_tuning/adaptive_tuning/z", vpe_mag_adaptive_tuning_.c2, 5.0);
+  pnh_.param("vpe/mag_tuning/adaptive_filtering/x", vpe_mag_adaptive_filtering_.c0, 5.5);
+  pnh_.param("vpe/mag_tuning/adaptive_filtering/y", vpe_mag_adaptive_filtering_.c1, 5.5);
+  pnh_.param("vpe/mag_tuning/adaptive_filtering/z", vpe_mag_adaptive_filtering_.c2, 5.5);
+
+  pnh_.param("vpe/accel_tuning/base_tuning/x", vpe_accel_base_tuning_.c0, 5.0);
+  pnh_.param("vpe/accel_tuning/base_tuning/y", vpe_accel_base_tuning_.c1, 5.0);
+  pnh_.param("vpe/accel_tuning/base_tuning/z", vpe_accel_base_tuning_.c2, 5.0);
+  pnh_.param("vpe/accel_tuning/adaptive_tuning/x", vpe_accel_adaptive_tuning_.c0, 3.0);
+  pnh_.param("vpe/accel_tuning/adaptive_tuning/y", vpe_accel_adaptive_tuning_.c1, 3.0);
+  pnh_.param("vpe/accel_tuning/adaptive_tuning/z", vpe_accel_adaptive_tuning_.c2, 3.0);
+  pnh_.param("vpe/accel_tuning/adaptive_filtering/x", vpe_accel_adaptive_filtering_.c0, 4.0);
+  pnh_.param("vpe/accel_tuning/adaptive_filtering/y", vpe_accel_adaptive_filtering_.c1, 4.0);
+  pnh_.param("vpe/accel_tuning/adaptive_filtering/z", vpe_accel_adaptive_filtering_.c2, 4.0);
 
   FixImuRate();
   sync_info_.FixSyncRate();
@@ -230,19 +251,70 @@ void ImuVn100::Initialize() {
   ROS_INFO("Default VPE filtering mode: %hu", vpe_filtering_mode);
   ROS_INFO("Default VPE tuning mode: %hu", vpe_tuning_mode);
   if (vpe_enable != vpe_enable_ ||
-      vpe_heading_mode != vpe_tuning_mode_ ||
-      vpe_filtering_mode != vpe_tuning_mode_ ||
+      vpe_heading_mode != vpe_heading_mode_ ||
+      vpe_filtering_mode != vpe_filtering_mode_ ||
       vpe_tuning_mode != vpe_tuning_mode_) {
       vpe_enable = vpe_enable_;
-      vpe_heading_mode = vpe_tuning_mode_;
-      vpe_filtering_mode = vpe_tuning_mode_;
+      vpe_heading_mode = vpe_heading_mode_;
+      vpe_filtering_mode = vpe_filtering_mode_;
       vpe_tuning_mode = vpe_tuning_mode_;
       ROS_INFO("Setting VPE enable: %hu", vpe_enable);
       ROS_INFO("Setting VPE heading mode: %hu", vpe_heading_mode);
       ROS_INFO("Setting VPE filtering mode: %hu", vpe_filtering_mode);
       ROS_INFO("Setting VPE tuning mode: %hu", vpe_tuning_mode);
-      VnEnsure(vn100_setVpeControl(&imu_, vpe_enable, vpe_heading_mode,
-          vpe_filtering_mode, vpe_tuning_mode, true));
+      VnEnsure(vn100_setVpeControl(
+        &imu_,
+        vpe_enable,
+        vpe_heading_mode,
+        vpe_filtering_mode,
+        vpe_tuning_mode,
+        true));
+  }
+
+  if (vpe_enable_) {
+      ROS_INFO(
+         "Setting VPE MagnetometerBasicTuning BaseTuning (%f, %f, %f)",
+         vpe_mag_base_tuning_.c0,
+         vpe_mag_base_tuning_.c1,
+         vpe_mag_base_tuning_.c2);
+      ROS_INFO(
+        "Setting VPE MagnetometerBasicTuning AdaptiveTuning (%f, %f, %f)",
+        vpe_mag_adaptive_tuning_.c0,
+        vpe_mag_adaptive_tuning_.c1,
+        vpe_mag_adaptive_tuning_.c2);
+      ROS_INFO(
+        "Setting VPE MagnetometerBasicTuning AdaptiveFiltering (%f, %f, %f)",
+        vpe_mag_adaptive_filtering_.c0,
+        vpe_mag_adaptive_filtering_.c1,
+        vpe_mag_adaptive_filtering_.c2);
+      VnEnsure(vn100_setVpeMagnetometerBasicTuning(
+        &imu_,
+        vpe_mag_base_tuning_,
+        vpe_mag_adaptive_tuning_,
+        vpe_mag_adaptive_filtering_,
+        true));
+
+      ROS_INFO(
+       "Setting VPE AccelerometerBasicTuning BaseTuning (%f, %f, %f)",
+       vpe_accel_base_tuning_.c0,
+       vpe_accel_base_tuning_.c1,
+       vpe_accel_base_tuning_.c2);
+    ROS_INFO(
+      "Setting VPE AccelerometerBasicTuning AdaptiveTuning (%f, %f, %f)",
+      vpe_accel_adaptive_tuning_.c0,
+      vpe_accel_adaptive_tuning_.c1,
+      vpe_accel_adaptive_tuning_.c2);
+    ROS_INFO(
+      "Setting VPE AccelerometerBasicTuning AdaptiveFiltering (%f, %f, %f)",
+      vpe_accel_adaptive_filtering_.c0,
+      vpe_accel_adaptive_filtering_.c1,
+      vpe_accel_adaptive_filtering_.c2);
+      VnEnsure(vn100_setVpeAccelerometerBasicTuning(
+        &imu_,
+        vpe_accel_base_tuning_,
+        vpe_accel_adaptive_tuning_,
+        vpe_accel_adaptive_filtering_,
+        true));
   }
 
   CreateDiagnosedPublishers();
