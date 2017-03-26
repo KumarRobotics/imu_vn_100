@@ -369,31 +369,44 @@ void ImuVn100::Stream(bool async) {
       }
       if (!sgrp1.empty()) {
         std::stringstream ss;
-        std::copy(sgrp1.begin(), sgrp1.end(),
-                  std::ostream_iterator<std::string>(ss, "|"));
+        std::copy(
+          sgrp1.begin(),
+          sgrp1.end(),
+          std::ostream_iterator<std::string>(ss, "|")
+        );
         std::string s = ss.str();
         s.pop_back();
         ROS_INFO("Streaming #1: %s", s.c_str());
       }
       if (!sgrp3.empty()) {
         std::stringstream ss;
-        std::copy(sgrp3.begin(), sgrp3.end(),
-                  std::ostream_iterator<std::string>(ss, "|"));
+        std::copy(
+          sgrp3.begin(),
+          sgrp3.end(),
+          std::ostream_iterator<std::string>(ss, "|")
+        );
         std::string s = ss.str();
         s.pop_back();
         ROS_INFO("Streaming #3: %s", s.c_str());
       }
       if (!sgrp5.empty()) {
         std::stringstream ss;
-        std::copy(sgrp5.begin(), sgrp5.end(),
-                  std::ostream_iterator<std::string>(ss, "|"));
+        std::copy(
+          sgrp5.begin(),
+          sgrp5.end(),
+          std::ostream_iterator<std::string>(ss, "|")
+        );
         std::string s = ss.str();
         s.pop_back();
         ROS_INFO("Streaming #5: %s", s.c_str());
       }
       VnEnsure(vn100_setBinaryOutput1Configuration(
-        &imu_, binary_async_mode_, kBaseImuRate / imu_rate_, grp1, grp3, grp5,
-        true));
+        &imu_,
+        binary_async_mode_,
+        kBaseImuRate / imu_rate_,
+        grp1, grp3, grp5,
+        true
+      ));
     } else {
       // Set the ASCII output data type and data rate
       // ROS_INFO("Configure the output data type and frequency (id: 6 & 7)");
@@ -545,7 +558,6 @@ void RosQuaternionFromVnQuaternion(geometry_msgs::Quaternion& ros_quat,
 
 geometry_msgs::Vector3 WorldNEDtoENU(const geometry_msgs::Vector3& ned) {
   // (x y z) -> (y  x -z)
-  // https://github.com/ros-drivers/um7/blob/indigo-devel/src/main.cpp#L217
   geometry_msgs::Vector3 enu;
   enu.x = ned.y;
   enu.y = ned.x;
@@ -554,35 +566,32 @@ geometry_msgs::Vector3 WorldNEDtoENU(const geometry_msgs::Vector3& ned) {
 }
 
 geometry_msgs::Quaternion WorldNEDtoENU(const geometry_msgs::Quaternion& ned) {
-  // (w x y z)->(y  x -z w)
-  // https://github.com/ros-drivers/um7/blob/indigo-devel/src/main.cpp#L217
+  // (x y z w)->(y  x -z w)
   geometry_msgs::Quaternion enu;
-  enu.w = ned.y;
-  enu.x = ned.x;
-  enu.y = -ned.z;
-  enu.z = ned.w;
+  enu.w = ned.w;
+  enu.x = ned.y;
+  enu.y = ned.x;
+  enu.z = -ned.z;
   return enu;
 }
 
 geometry_msgs::Vector3 BodyFixedNEDtoENU(const geometry_msgs::Vector3 ned) {
   // (x y z)->(x -y -z)
-  // https://github.com/ros-drivers/um7/blob/indigo-devel/src/main.cpp#L216
   geometry_msgs::Vector3 enu;
   enu.x = ned.x;
-  enu.y -ned.y;
+  enu.y = -ned.y;
   enu.z = -ned.z;
   return enu;
 }
 
 geometry_msgs::Quaternion BodyFixedNEDtoENU(
   const geometry_msgs::Quaternion& ned) {
-  // (w x y z)->(x -y -z w)
-  // https://github.com/ros-drivers/um7/blob/indigo-devel/src/main.cpp#L217
+  // (x y z w)->(x -y -z w)
   geometry_msgs::Quaternion enu;
-  enu.w = ned.x;
-  enu.x = -ned.y;
-  enu.y = -ned.z;
-  enu.z = ned.w;
+  enu.w = ned.w;
+  enu.x = ned.x;
+  enu.y = -ned.y;
+  enu.z = -ned.z;
   return enu;
 }
 
