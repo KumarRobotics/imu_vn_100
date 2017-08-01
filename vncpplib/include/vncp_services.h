@@ -57,7 +57,7 @@
 
 #endif
 
-#if defined(__linux__) || defined(__QNXNTO__)
+#if defined(__linux__) || defined(__QNXNTO__) || defined(__APPLE__)
 	#include <pthread.h>
 #endif
 
@@ -101,7 +101,7 @@ extern "C" {
 #ifdef WIN32
 	typedef HANDLE				VN_HANDLE;
 	typedef CRITICAL_SECTION	VN_CRITICAL_SECTION;
-#elif defined(__linux__) || defined(__QNXNTO__)
+#elif defined(__linux__) || defined(__QNXNTO__) || defined(__APPLE__)
 	typedef	union {
 		pthread_t			pThreadHandle;
 		int					comPortHandle;
@@ -109,6 +109,17 @@ extern "C" {
 		void*				conditionAndMutexStruct;
 	} VN_HANDLE;
 	typedef pthread_mutex_t	VN_CRITICAL_SECTION;
+#endif
+
+#if defined(__APPLE__)
+  #define B9600 9600
+  #define B19200 19200
+  #define B38400 38400
+  #define B57600 57600
+  #define B115200 115200
+  #define B230400 230400
+  #define B460800 460800
+  #define B921600 921600
 #endif
 
 typedef void *(*VN_THREAD_START_ROUTINE)(void*);
