@@ -174,6 +174,17 @@ VN_ERROR_CODE vncp_comPort_optimize(
 	return VNERR_NO_ERROR;
 }
 
+#if defined(__APPLE__)
+  #define B9600 9600
+  #define B19200 19200
+  #define B38400 38400
+  #define B57600 57600
+  #define B115200 115200
+  #define B230400 230400
+  #define B460800 460800
+  #define B921600 921600
+#endif
+
 tcflag_t vncp_determineBaudrateFlag(unsigned int baudrate)
 {
 	switch (baudrate) {

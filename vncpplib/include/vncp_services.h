@@ -57,7 +57,7 @@
 
 #endif
 
-#if defined(__linux__) || defined(__QNXNTO__)
+#if defined(__linux__) || defined(__QNXNTO__) || defined(__APPLE__)
 	#include <pthread.h>
 #endif
 
@@ -101,7 +101,7 @@ extern "C" {
 #ifdef WIN32
 	typedef HANDLE				VN_HANDLE;
 	typedef CRITICAL_SECTION	VN_CRITICAL_SECTION;
-#elif defined(__linux__) || defined(__QNXNTO__)
+#elif defined(__linux__) || defined(__QNXNTO__) || defined(__APPLE__)
 	typedef	union {
 		pthread_t			pThreadHandle;
 		int					comPortHandle;
