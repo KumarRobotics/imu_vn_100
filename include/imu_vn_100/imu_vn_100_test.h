@@ -1,7 +1,5 @@
 /*
- * Copyright [2016]
- * Authors: [Ke Sun]
- *          Andre Phu-Van Nguyen <andre-phu-van.nguyen@polymtl.ca>
+ * Copyright [2015] [Ke Sun]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,8 +25,7 @@
 #include <sensor_msgs/FluidPressure.h>
 #include <sensor_msgs/Temperature.h>
 
-#include "vn/sensors/sensors.h"
-#include "vn/protocol/uart/types.h"
+#include <vn100.h>
 
 namespace imu_vn_100 {
 
@@ -78,7 +75,7 @@ class ImuVn100 {
 
   void Stream(bool async = true);
 
-  void PublishData(vn::protocol::uart::Packet& p);
+  void PublishData(const VnDeviceCompositeData& data);
 
   void RequestOnce();
 
@@ -106,16 +103,14 @@ class ImuVn100 {
 
   const SyncInfo sync_info() const { return sync_info_; }
 
-  bool IsBinaryOutput() { return binary_output_; }
  private:
   ros::NodeHandle pnh_;
-  vn::sensors::VnSensor imu_;
+  Vn100 imu_;
 
   // Settings
   std::string port_;
   int baudrate_ = 921600;
   int imu_rate_ = kDefaultImuRate;
-  vn::protocol::uart::AsyncMode vn_serial_output_ = vn::protocol::uart::ASYNCMODE_PORT1;
   double imu_rate_double_ = kDefaultImuRate;
   std::string frame_id_;
 
@@ -135,8 +130,8 @@ class ImuVn100 {
 };
 
 // Just don't like type that is ALL CAP
-//using VnErrorCode = VN_ERROR_CODE;
-//void VnEnsure(const VnErrorCode& error_code);
+using VnErrorCode = VN_ERROR_CODE;
+void VnEnsure(const VnErrorCode& error_code);
 
 }  // namespace imu_vn_100
 

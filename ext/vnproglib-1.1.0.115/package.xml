@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>vnproglib</name>
+  <version>1.0.115</version>
+  <description>VectorNav beta programming library</description>
+  <maintainer email="none@none.com">No body</maintainer>
+  <license>See VectorNav release</license>
+  <buildtool_depend>catkin</buildtool_depend>
+
+
+</package>
