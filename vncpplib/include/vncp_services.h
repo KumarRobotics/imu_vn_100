@@ -111,17 +111,6 @@ extern "C" {
 	typedef pthread_mutex_t	VN_CRITICAL_SECTION;
 #endif
 
-#if defined(__APPLE__)
-  #define B9600 9600
-  #define B19200 19200
-  #define B38400 38400
-  #define B57600 57600
-  #define B115200 115200
-  #define B230400 230400
-  #define B460800 460800
-  #define B921600 921600
-#endif
-
 typedef void *(*VN_THREAD_START_ROUTINE)(void*);
 
 /**
