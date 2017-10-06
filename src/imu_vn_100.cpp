@@ -17,7 +17,6 @@
 #include <imu_vn_100/imu_vn_100.h>
 
 #include <geometry_msgs/Vector3Stamped.h>
-#include <tf/transform_datatypes.h>
 
 namespace imu_vn_100 {
 
