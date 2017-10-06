@@ -15,8 +15,7 @@
     <!-- Binary settings -->
     <arg name="binary_output" default="true"/>
     <arg name="binary_async_mode" default="2"/>
-    
-    <arg name="tf_ned_to_enu" default="false"/>
+
     <arg name="imu_compensated" default="false"/>
 
     <!-- VPE settings -->
@@ -24,7 +23,7 @@
     <arg name="vpe_heading_mode" default="1"/>
     <arg name="vpe_filtering_mode" default="1"/>
     <arg name="vpe_tuning_mode" default="1"/>
-    
+
     <!-- Ros Topic settings -->
     <arg name="enable_mag" default="true"/>
     <arg name="enable_pres" default="true"/>
@@ -38,7 +37,6 @@
         <param name="imu_rate" type="int" value="$(arg imu_rate)"/>
         <param name="binary_output" type="bool" value="$(arg binary_output)"/>
         <param name="binary_async_mode" type="int" value="$(arg binary_async_mode)"/>
-        <param name="tf_ned_to_enu" type="bool" value="$(arg tf_ned_to_enu)"/>
         <param name="imu_compensated" type="bool" value="$(arg imu_compensated)"/>
         <param name="enable_mag" type="bool" value="$(arg enable_mag)"/>
         <param name="enable_pres" type="bool" value="$(arg enable_pres)"/>

@@ -59,7 +59,7 @@ The rate of the sync out trigger signal. Note that the actual rate may not exact
 
 `binary_output` (`boolean`, `default: true`)
 
-Use binary  protocol for receiving messages instead of ASCII. 
+Use binary  protocol for receiving messages instead of ASCII.
 
 `binary_async_mode` (`int`, `default: 2`)
 
@@ -71,10 +71,6 @@ Set serial port for binary messages to one of:
 `imu_compensated` (`boolean`, `default: true`)
 
 Use *compensated* IMU measurements (i.e. angular velocity, linear acceleration, magnetic field).
-
-`tf_ned_to_enu` (`boolean`, `default: false`)
-
-Convert (e.g. `geometry_msg/Vector3`) from NED (native) to ENU coordinate frame.
 
 `vpe_enable` (`boolean`, `default: true`)
 
