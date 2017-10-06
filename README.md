@@ -11,10 +11,12 @@ The package is tested on Ubuntu 14.04 with ROS indigo.
 Note that the official SDK is modified within this package due to some bugs or unsupported features. Please carefully update the SDK, since the new SDK may not work with the provided software.
 
 ## License
+
 * The license for the official SDK is the MIT license which is included in the `include/imu_vn_100/vncpplib`
 * The license for the other codes is Apache 2.0 whenever not specified.
 
 ## Compiling
+
 This is a Catkin package. Make sure the package is on `ROS_PACKAGE_PATH` after cloning the package to your workspace. And the normal procedure for compiling a catkin package will work.
 
 ```
@@ -46,6 +48,7 @@ The rate of the IMU data.
 enable_magn  (bool, default: true)
 enable_press (bool, default: true)
 enable_temp  (bool, default: true)
+enable_rpy  (bool, default: false)
 ```
 
 Enable other possible messages that the driver is available to send. Note that the frequency of the data for each of these messages will be the same with the IMU data, if the topic is enabled.
@@ -54,15 +57,60 @@ Enable other possible messages that the driver is available to send. Note that t
 
 The rate of the sync out trigger signal. Note that the actual rate may not exactly match the provided rate, unless the provided rate is a divisor of 800. When `sync_rate` <= 0, it is disabled.
 
+`binary_output` (`boolean`, `default: true`)
+
+Use binary  protocol for receiving messages instead of ASCII. 
+
+`binary_async_mode` (`int`, `default: 2`)
+
+Set serial port for binary messages to one of:
+
+* `1` - Serial port 1
+* `2` - Serial port 2
+
+`imu_compensated` (`boolean`, `default: true`)
+
+Use *compensated* IMU measurements (i.e. angular velocity, linear acceleration, magnetic field).
+
+`tf_ned_to_enu` (`boolean`, `default: false`)
+
+Convert (e.g. `geometry_msg/Vector3`) from NED (native) to ENU coordinate frame.
+
+`vpe_enable` (`boolean`, `default: true`)
+
+Use Vector Processing Engine.
+
+`vpe_heading_mode` (`int`, `default: 1`)
+
+Set VPE heading mode to one of:
+
+* `0` - Absolute
+* `1` - Relative
+* `2` - Indoor
+
+`vpe_filtering_mode` (`int`, `default: 1`)
+
+Set VPE filtering mode to one of:
+
+* `0` - Off
+* `1` - *MODE 1*
+
+`vpe_tuning_mode` (`int`, `default: 1`)
+
+Set VPE tuning mode to one of:
+
+* `0` - Off
+* `1` - *MODE 1*
+
 **Published Topics**
 
 `imu/imu` (`sensor_msgs/Imu`)
 
-The message contains the uncompensated (for the definition of UNCOMPENSATED, please refer to the [user manual](http://www.vectornav.com/docs/default-source/documentation/vn-100-documentation/UM001.pdf?sfvrsn=10)) angular velocity and linear acceleration. Note that the orientation is not provided on this topic.
+If `imu_compensated` is `false`, the default, then the message contains the *uncompensated* (for the definition of UNCOMPENSATED, please refer to the [user manual](http://www.vectornav.com/docs/default-source/documentation/vn-100-documentation/UM001.pdf?sfvrsn=10)) angular velocity and linear acceleration. Otherwise both are *compensated*.
 
 `imu/magnetic_field` (`sensor_msgs/MagneticField`)
 
-Uncompensated magnetic field.
+Magnetic field. If `imu_compensated` is `false` then it is *uncompensated* otherwise it is *compensated*.
 
 `imu/pressure` (`sensor_msgs/FluidPressure`)
 
@@ -71,6 +119,10 @@ Pressure.
 `imu/temperature` (`sensor_msgs/Temperature`)
 
 Temperature in degree Celsius
+
+`imu/rpy` (`geometry_msgs/Vector3Stamped`)
+
+Estimated *attitute* roll (`x`), pitch (`y`) and yaw (`z`) angles measured in radians in body frame. These are with respect to NED or ENU coordinate frame depending on`tf_ned_to_enu`.
 
 **Node**
 
@@ -81,6 +133,7 @@ roslaunch imu_vn_100 vn_100_cont.launch
 ```
 
 ## FAQ
+
 1. The driver can't open my device?
 Make sure you have ownership of the device in `/dev`.
 
