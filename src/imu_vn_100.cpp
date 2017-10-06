@@ -35,10 +35,6 @@ void RosVector3FromVnVector3(geometry_msgs::Vector3& ros_vec3,
                              const VnVector3& vn_vec3);
 void RosQuaternionFromVnQuaternion(geometry_msgs::Quaternion& ros_quat,
                                    const VnQuaternion& vn_quat);
-geometry_msgs::Vector3 WorldNEDtoENU(const geometry_msgs::Vector3& ned);
-geometry_msgs::Quaternion WorldNEDtoENU(const geometry_msgs::Quaternion& ned);
-geometry_msgs::Vector3 BodyFixedNEDtoENU(const geometry_msgs::Vector3 ned);
-geometry_msgs::Quaternion BodyFixedNEDtoENU(const geometry_msgs::Quaternion& ned);
 
 void AsyncListener(void* sender, VnDeviceCompositeData* data) {
   imu_vn_100_ptr->PublishData(*data);
@@ -124,8 +120,6 @@ void ImuVn100::LoadParameters() {
   pnh_.param("binary_output", binary_output_, true);
   pnh_.param("binary_async_mode", binary_async_mode_,
              BINARY_ASYNC_MODE_SERIAL_2);
-
-  pnh_.param("tf_ned_to_enu", tf_ned_to_enu_, false);
 
   pnh_.param("imu_compensated", imu_compensated_, false);
 
@@ -463,12 +457,6 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
   if (binary_output_) {
     RosQuaternionFromVnQuaternion(imu_msg.orientation, data.quaternion);
   }
-  if  (tf_ned_to_enu_) {
-    imu_msg.orientation = WorldNEDtoENU(imu_msg.orientation);
-    imu_msg.angular_velocity =  BodyFixedNEDtoENU(imu_msg.angular_velocity);
-    imu_msg.linear_acceleration = BodyFixedNEDtoENU(
-      imu_msg.linear_acceleration);
-  }
   pd_imu_.Publish(imu_msg);
 
   if (enable_rpy_) {
@@ -477,9 +465,6 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
     rpy_msg.vector.z = data.ypr.yaw * M_PI/180.0;
     rpy_msg.vector.y = data.ypr.pitch * M_PI/180.0;
     rpy_msg.vector.x = data.ypr.roll * M_PI/180.0;
-    if  (tf_ned_to_enu_) {
-        rpy_msg.vector = WorldNEDtoENU(rpy_msg.vector);
-    }
     pd_rpy_.Publish(rpy_msg);
   }
 
@@ -487,9 +472,6 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
     sensor_msgs::MagneticField mag_msg;
     mag_msg.header = imu_msg.header;
     RosVector3FromVnVector3(mag_msg.magnetic_field, data.magnetic);
-    if (tf_ned_to_enu_) {
-        mag_msg.magnetic_field = WorldNEDtoENU(mag_msg.magnetic_field);
-    }
     pd_mag_.Publish(mag_msg);
   }
 
@@ -554,45 +536,6 @@ void RosQuaternionFromVnQuaternion(geometry_msgs::Quaternion& ros_quat,
   ros_quat.y = vn_quat.y;
   ros_quat.z = vn_quat.z;
   ros_quat.w = vn_quat.w;
-}
-
-geometry_msgs::Vector3 WorldNEDtoENU(const geometry_msgs::Vector3& ned) {
-  // (x y z) -> (y  x -z)
-  geometry_msgs::Vector3 enu;
-  enu.x = ned.y;
-  enu.y = ned.x;
-  enu.z = -ned.z;
-  return enu;
-}
-
-geometry_msgs::Quaternion WorldNEDtoENU(const geometry_msgs::Quaternion& ned) {
-  // (x y z w)->(y  x -z w)
-  geometry_msgs::Quaternion enu;
-  enu.w = ned.w;
-  enu.x = ned.y;
-  enu.y = ned.x;
-  enu.z = -ned.z;
-  return enu;
-}
-
-geometry_msgs::Vector3 BodyFixedNEDtoENU(const geometry_msgs::Vector3 ned) {
-  // (x y z)->(x -y -z)
-  geometry_msgs::Vector3 enu;
-  enu.x = ned.x;
-  enu.y = -ned.y;
-  enu.z = -ned.z;
-  return enu;
-}
-
-geometry_msgs::Quaternion BodyFixedNEDtoENU(
-  const geometry_msgs::Quaternion& ned) {
-  // (x y z w)->(x -y -z w)
-  geometry_msgs::Quaternion enu;
-  enu.w = ned.w;
-  enu.x = ned.x;
-  enu.y = -ned.y;
-  enu.z = -ned.z;
-  return enu;
 }
 
 }  //  namespace imu_vn_100
