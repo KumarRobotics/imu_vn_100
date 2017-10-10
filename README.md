@@ -130,11 +130,25 @@ roslaunch imu_vn_100 vn_100_cont.launch
 
 ## FAQ
 
-1. The driver can't open my device?
+1. The driver can't open my device?\
 Make sure you have ownership of the device in `/dev`.
 
-2. Why I have permission error during the initialization process of the driver?
+2. Why I have permission error during the initialization process of the driver?\
 Most often, this is because the baud rate you set does not match the package size to be received. Try increase the baud rate.
+
+3. Why is the IMU data output rate much lower than what is set?\
+This may be due to a recent change in the FTDI USB-Serial driver in the Linux kernel, the following shell script might help:
+    ```bash
+    # Reduce latency in the FTDI serial-USB kernel driver to 1ms
+    # This is required due to https://github.com/torvalds/linux/commit/c6dce262
+    for file in $(ls /sys/bus/usb-serial/devices/); do
+      value=`cat /sys/bus/usb-serial/devices/$file/latency_timer`
+      if [ $value -gt 1 ]; then
+        echo "Setting low_latency mode for $file"
+        sudo sh -c "echo 1 > /sys/bus/usb-serial/devices/$file/latency_timer"
+      fi
+    done
+    ```
 
 ## Bug Report
 
