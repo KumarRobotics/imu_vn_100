@@ -44,9 +44,9 @@
         <param name="enable_rpy" type="bool" value="$(arg enable_rpy)"/>
         <param name="sync_rate" type="int" value="$(arg sync_rate)"/>
         <param name="sync_pulse_width_us" type="int" value="$(arg sync_pulse_width_us)"/>
-        <param name="vpe_enable" type="bool" value="$(arg vpe_enable)"/>
-        <param name="vpe_heading_mode" type="int" value="$(arg vpe_heading_mode)"/>
-        <param name="vpe_filtering_mode" type="int" value="$(arg vpe_filtering_mode)"/>
-        <param name="vpe_tuning_mode" type="int" value="$(arg vpe_tuning_mode)"/>
+        <param name="vpe/enable" type="bool" value="$(arg vpe_enable)"/>
+        <param name="vpe/heading_mode" type="int" value="$(arg vpe_heading_mode)"/>
+        <param name="vpe/filtering_mode" type="int" value="$(arg vpe_filtering_mode)"/>
+        <param name="vpe/tuning_mode" type="int" value="$(arg vpe_tuning_mode)"/>
     </node>
 </launch>
