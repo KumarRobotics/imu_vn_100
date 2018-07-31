@@ -25,10 +25,10 @@
     <arg name="vpe_tuning_mode" default="1"/>
 
     <!-- Ros Topic settings -->
-    <arg name="enable_mag" default="false"/>
-    <arg name="enable_pres" default="false"/>
-    <arg name="enable_temp" default="false"/>
-    <arg name="enable_rpy" default="true"/>
+    <arg name="enable_mag" default="true"/>
+    <arg name="enable_pres" default="true"/>
+    <arg name="enable_temp" default="true"/>
+    <arg name="enable_rpy" default="false"/>
 
     <node pkg="imu_vn_100" name="$(arg imu)" type="imu_vn_100_node" output="$(arg output)">
         <param name="port" type="string" value="$(arg port)"/>
