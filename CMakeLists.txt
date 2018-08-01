@@ -23,7 +23,6 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
-
 add_library(imu_vn_100
   vncpplib/src/arch/linux/vncp_services.c
   vncpplib/src/vndevice.c
@@ -38,13 +37,28 @@ add_dependencies(imu_vn_100
   ${catkin_EXPORTED_TARGETS}
 )
 
-add_executable(imu_vn_100_cont_node
-  src/imu_vn_100_cont.cpp)
-target_link_libraries(imu_vn_100_cont_node
+add_executable(imu_vn_100_node
+  src/imu_vn_100_node.cpp)
+target_link_libraries(imu_vn_100_node
   ${catkin_LIBRARIES}
   imu_vn_100
 )
-add_dependencies(imu_vn_100_cont_node
+add_dependencies(imu_vn_100_node
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
+)
+
+install(TARGETS imu_vn_100 imu_vn_100_node
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+)
+
+install(DIRECTORY include/${PROJECT_NAME}/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+  FILES_MATCHING PATTERN "*.h**"
+)
+
+install(DIRECTORY launch
+        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
