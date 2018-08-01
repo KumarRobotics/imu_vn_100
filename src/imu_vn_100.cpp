@@ -239,10 +239,10 @@ void ImuVn100::Initialize() {
   uint8_t vpe_tuning_mode;
   VnEnsure(vn100_getVpeControl(&imu_, &vpe_enable, &vpe_heading_mode,
     &vpe_filtering_mode, &vpe_tuning_mode));
-  ROS_INFO("Default VPE enable: %hu", vpe_enable);
-  ROS_INFO("Default VPE heading mode: %hu", vpe_heading_mode);
-  ROS_INFO("Default VPE filtering mode: %hu", vpe_filtering_mode);
-  ROS_INFO("Default VPE tuning mode: %hu", vpe_tuning_mode);
+  ROS_INFO("Default VPE enable: %hhu", vpe_enable);
+  ROS_INFO("Default VPE heading mode: %hhu", vpe_heading_mode);
+  ROS_INFO("Default VPE filtering mode: %hhu", vpe_filtering_mode);
+  ROS_INFO("Default VPE tuning mode: %hhu", vpe_tuning_mode);
   if (vpe_enable != vpe_enable_ ||
       vpe_heading_mode != vpe_heading_mode_ ||
       vpe_filtering_mode != vpe_filtering_mode_ ||
@@ -251,10 +251,10 @@ void ImuVn100::Initialize() {
       vpe_heading_mode = vpe_heading_mode_;
       vpe_filtering_mode = vpe_filtering_mode_;
       vpe_tuning_mode = vpe_tuning_mode_;
-      ROS_INFO("Setting VPE enable: %hu", vpe_enable);
-      ROS_INFO("Setting VPE heading mode: %hu", vpe_heading_mode);
-      ROS_INFO("Setting VPE filtering mode: %hu", vpe_filtering_mode);
-      ROS_INFO("Setting VPE tuning mode: %hu", vpe_tuning_mode);
+      ROS_INFO("Setting VPE enable: %hhu", vpe_enable);
+      ROS_INFO("Setting VPE heading mode: %hhu", vpe_heading_mode);
+      ROS_INFO("Setting VPE filtering mode: %hhu", vpe_filtering_mode);
+      ROS_INFO("Setting VPE tuning mode: %hhu", vpe_tuning_mode);
       VnEnsure(vn100_setVpeControl(
         &imu_,
         vpe_enable,
@@ -459,7 +459,7 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
   pd_imu_.Publish(imu_msg);
 
   if (enable_rpy_) {
-    geometry_msgs:Vector3Stamped rpy_msg;
+    Vector3Stamped rpy_msg;
     rpy_msg.header= imu_msg.header;
     rpy_msg.vector.z = data.ypr.yaw * M_PI/180.0;
     rpy_msg.vector.y = data.ypr.pitch * M_PI/180.0;
