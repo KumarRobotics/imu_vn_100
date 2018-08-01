@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(imu_vn_100)
 
-set(CMAKE_CXX_FLAGS "-std=gnu++11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall")
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp
@@ -57,6 +57,15 @@ install(TARGETS imu_vn_100 imu_vn_100_node
 install(DIRECTORY include/${PROJECT_NAME}/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
   FILES_MATCHING PATTERN "*.h**"
+)
+
+install(FILES vncpplib/include/vn100.h
+  vncpplib/include/vncp_services.h
+  vncpplib/include/vndevice.h
+  vncpplib/include/vn_errorCodes.h
+  vncpplib/include/vn_kinematics.h
+  vncpplib/include/vn_linearAlgebra.h
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
 )
 
 install(DIRECTORY launch

@@ -25,7 +25,7 @@
 #include <sensor_msgs/FluidPressure.h>
 #include <sensor_msgs/Temperature.h>
 
-#include <vn100.h>
+#include "vn100.h"
 
 namespace imu_vn_100 {
 
