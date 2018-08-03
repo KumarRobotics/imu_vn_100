@@ -118,7 +118,7 @@ Temperature in degree Celsius
 
 `imu/rpy` (`geometry_msgs/Vector3Stamped`)
 
-Estimated *attitute* roll (`x`), pitch (`y`) and yaw (`z`) angles measured in radians in body frame. These are with respect to NED or ENU coordinate frame depending on`tf_ned_to_enu`.
+Estimated roll (`x`), pitch (`y`) and yaw (`z`) angles in radians given as a 3,2,1 Euler angle rotation sequence describing the orientation of the sensor with respect to the inertial North East Down (NED) frame.
 
 **Node**
 
