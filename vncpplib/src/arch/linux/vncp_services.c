@@ -36,6 +36,8 @@
 #include <string.h>
 #include "vncp_services.h"
 #include "vn_errorCodes.h"
+#include <sys/ioctl.h>
+#include <linux/serial.h>
 
 /* Private type declarations. ************************************************/
 typedef struct {
@@ -88,6 +90,7 @@ VN_ERROR_CODE vncp_comPort_open(VN_HANDLE* newComPortHandle, char const* portNam
 	struct termios portSettings;
 	int portFd = -1;
 	tcflag_t baudrateFlag;
+	struct serial_struct ser_info;
 
 	portFd = open(portName, O_RDWR | O_NOCTTY);
 	if (portFd == -1)
@@ -99,6 +102,11 @@ VN_ERROR_CODE vncp_comPort_open(VN_HANDLE* newComPortHandle, char const* portNam
 	baudrateFlag = vncp_determineBaudrateFlag(baudrate);
 	if (baudrateFlag == B0)
 		return VNERR_UNKNOWN_ERROR;
+
+	/* Enable low latency mode on Linux */
+	ioctl(portFd, TIOCGSERIAL, &ser_info);
+	ser_info.flags |= ASYNC_LOW_LATENCY;
+	ioctl(portFd, TIOCSSERIAL, &ser_info);
 
 	/* Set baudrate, 8n1, no modem control, enable receiving characters. */
 	portSettings.c_cflag = baudrateFlag | CS8 | CLOCAL | CREAD;
