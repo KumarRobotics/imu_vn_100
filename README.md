@@ -150,10 +150,6 @@ This may be due to a recent change in the FTDI USB-Serial driver in the Linux ke
     done
     ```
 
-## Bug Report
-
-Prefer to open an issue. You can also send an E-mail to sunke.polyu@gmail.com.
-
 ## Bugs or Features Required of the Official SDK
 
 * [Solved] Define macros for options to set synchronization register and communication control register. (vndevice.h)
