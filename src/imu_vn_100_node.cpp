@@ -25,7 +25,7 @@ int main(int argc, char** argv) {
 
   try {
     ImuVn100 imu(pnh);
-    imu.Stream(true);
+    //imu.Stream(true);
     ros::spin();
   } catch (const std::exception& e) {
     ROS_INFO("%s: %s", pnh.getNamespace().c_str(), e.what());
