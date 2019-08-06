@@ -769,6 +769,8 @@ uint16_t vndevice_processGroup2Data(
 
 		groupDataPtr += sizeof (uint32_t);
 	}
+	
+	//implement here for 0x0100 - synchronisation counter output
 
 	return (uint16_t) (groupDataPtr - originalGroupDataPtr);
 }

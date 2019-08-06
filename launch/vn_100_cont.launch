@@ -14,7 +14,7 @@
 
     <!-- Binary settings -->
     <arg name="binary_output" default="true"/>
-    <arg name="binary_async_mode" default="2"/>
+    <arg name="binary_async_mode" default="1"/>
 
     <arg name="imu_compensated" default="false"/>
 

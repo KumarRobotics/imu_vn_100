@@ -143,6 +143,8 @@ extern "C" {
 #define BG2_TIME_PPS		0x0020	/**< Time since the last GPS PPS trigger. */
 #define BG2_TIME_UTC		0x0040	/**< UTC time. */
 #define BG2_SYNC_IN_CNT		0x0080	/**< SyncIn trigger count. */
+#define BG2_SYNC_OUT_CNT    0x0100  /**< SyncOut trigger count. */
+
 /** @} */
 
 /**
@@ -353,6 +355,7 @@ typedef struct {
 	double			posU;						/**< The estimated uncertainty of the current position estimate in meters. */
 	double			velU;						/**< The estimated uncertainty of the current velocity estimate in m/s. */
 	float			attitudeUncertainty;		/**< Uncertainty in attitude estimate. */
+	int             syncOutCnt;                 /**< Number of sync out counts. */
 } VnDeviceCompositeData;
 
 #if defined(_MSC_VER)

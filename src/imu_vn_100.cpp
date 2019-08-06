@@ -320,7 +320,7 @@ void ImuVn100::Initialize() {
 void ImuVn100::Stream(bool async) {
   // Pause the device first
   VnEnsure(vn100_pauseAsyncOutputs(&imu_, true));
-
+  
   if (async) {
     VnEnsure(vn100_setAsynchronousDataOutputType(&imu_, VNASYNC_OFF, true));
 
@@ -332,6 +332,11 @@ void ImuVn100::Stream(bool async) {
         grp1 |= BG1_YPR;
         sgrp1.push_back("BG1_YPR");
       }
+      uint16_t grp2 = BG2_NONE;
+      if (sync_info_.SyncEnabled())
+		{
+			grp2 |= BG2_SYNC_OUT_CNT;
+		}
       uint16_t grp3 = BG3_NONE;
       std::list<std::string> sgrp3;
       uint16_t grp5 = BG5_NONE;
@@ -393,11 +398,11 @@ void ImuVn100::Stream(bool async) {
         s.pop_back();
         ROS_INFO("Streaming #5: %s", s.c_str());
       }
-      VnEnsure(vn100_setBinaryOutput1Configuration(
+      VnEnsure(vn100_setBinaryOutput1Configuration_withgrp2(
         &imu_,
         binary_async_mode_,
         kBaseImuRate / imu_rate_,
-        grp1, grp3, grp5,
+        grp1, grp2, grp3, grp5,
         true
       ));
     } else {
