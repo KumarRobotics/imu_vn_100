@@ -182,7 +182,7 @@ VN_ERROR_CODE vn100_setBinaryOutputConfiguration_withgrp2(
 	uint16_t asyncMode,
 	uint16_t rateDivisor,
 	uint16_t outputGroup1Selections,
-	uint16_t outputGroup2Selections
+	uint16_t outputGroup2Selections,
 	uint16_t outputGroup3Selections,
 	uint16_t outputGroup5Selections,
 	bool waitForResponse)
@@ -243,12 +243,14 @@ VN_ERROR_CODE vn100_setBinaryOutput1Configuration_withgrp2(
 	uint16_t outputGroup5Selections,
 	bool waitForResponse)
 {
-	return vn100_setBinaryOutputConfiguration(
+	printf("Inside set binary output configuration with grp 2 function");
+	return vn100_setBinaryOutputConfiguration_withgrp2(
 		vn100,
 		1,
 		asyncMode,
 		rateDivisor,
 		outputGroup1Selections,
+		outputGroup2Selections,
 		outputGroup3Selections,
 		outputGroup5Selections,
 		waitForResponse);

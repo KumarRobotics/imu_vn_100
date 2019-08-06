@@ -770,7 +770,13 @@ uint16_t vndevice_processGroup2Data(
 		groupDataPtr += sizeof (uint32_t);
 	}
 	
-	//implement here for 0x0100 - synchronisation counter output
+	/*if (groupField & 0x0100)
+	{
+		data->syncOutCnt = *((uint32_t*) groupDataPtr);
+		groupDataPtr += sizeof(uint32_t);
+	}
+	
+	/*implement here for 0x0100 - synchronisation counter output*/
 
 	return (uint16_t) (groupDataPtr - originalGroupDataPtr);
 }
@@ -3405,7 +3411,7 @@ DLL_EXPORT VN_ERROR_CODE vndevice_setBinaryOutputConfiguration(
 	if (outputGroup6Selections != 0) {
 		curBufLoc += sprintf(cmdToSendBuilder + curBufLoc, ",%X", outputGroup6Selections);
 	}
-
+	cout("%s",cmdTosendBuilder);
 	if (waitForResponse)
 		errorCode = vndevice_transaction(vndevice, cmdToSendBuilder, responseMatch);
 	else

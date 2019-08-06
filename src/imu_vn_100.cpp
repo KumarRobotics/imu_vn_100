@@ -15,7 +15,7 @@
  */
 
 #include <imu_vn_100/imu_vn_100.h>
-
+#include <ros/console.h>
 #include <geometry_msgs/Vector3Stamped.h>
 
 namespace imu_vn_100 {
@@ -337,6 +337,8 @@ void ImuVn100::Stream(bool async) {
 		{
 			grp2 |= BG2_SYNC_OUT_CNT;
 		}
+	  ROS_INFO("test group id %d",grp2);
+	  
       uint16_t grp3 = BG3_NONE;
       std::list<std::string> sgrp3;
       uint16_t grp5 = BG5_NONE;

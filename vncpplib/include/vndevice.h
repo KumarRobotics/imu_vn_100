@@ -63,6 +63,7 @@
 extern "C" {
 #endif
 
+#include <std.h>;
 /**
  * @defgroup ASYNC_OUTPUTS Asynchronous Output Types
  *
@@ -323,6 +324,7 @@ typedef struct {
 	VnVector3		deltaVelocity;				/**< The delta velocity due to motion since the values were last output by the device. */
 	uint16_t		insStatus;					/**< Status flags for the INS filter. */
 	uint32_t		syncInCnt;					/**< Number of SyncIn trigger events. */
+	uint32_t        syncOutCnt;                 /**< Number of sync out counts. */
 	uint64_t		timeGpsPps;					/**< Time since the last GPS PPS trigger event. */
 	double			gpsTowSec;					/**< GPS time of week in seconds. */
 	uint64_t		gpsTowNs;					/**< GPS time of week in nanoseconds. */
@@ -355,7 +357,6 @@ typedef struct {
 	double			posU;						/**< The estimated uncertainty of the current position estimate in meters. */
 	double			velU;						/**< The estimated uncertainty of the current velocity estimate in m/s. */
 	float			attitudeUncertainty;		/**< Uncertainty in attitude estimate. */
-	uint32_t             syncOutCnt;                 /**< Number of sync out counts. */
 } VnDeviceCompositeData;
 
 #if defined(_MSC_VER)
