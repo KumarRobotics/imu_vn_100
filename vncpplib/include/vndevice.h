@@ -355,7 +355,7 @@ typedef struct {
 	double			posU;						/**< The estimated uncertainty of the current position estimate in meters. */
 	double			velU;						/**< The estimated uncertainty of the current velocity estimate in m/s. */
 	float			attitudeUncertainty;		/**< Uncertainty in attitude estimate. */
-	int             syncOutCnt;                 /**< Number of sync out counts. */
+	uint32_t             syncOutCnt;                 /**< Number of sync out counts. */
 } VnDeviceCompositeData;
 
 #if defined(_MSC_VER)

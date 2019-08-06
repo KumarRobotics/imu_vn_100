@@ -176,7 +176,7 @@ VN_ERROR_CODE vn100_getBinaryOutput5Configuration(
 		outputGroup5Selections);
 }
 
-VN_ERROR_CODE vn100_setBinaryOutputConfiguration(
+VN_ERROR_CODE vn100_setBinaryOutputConfiguration_withgrp2(
 	Vn100* vn100,
 	uint8_t binaryOutputRegisterId,
 	uint16_t asyncMode,
