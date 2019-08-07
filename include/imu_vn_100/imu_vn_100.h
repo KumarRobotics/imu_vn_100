@@ -17,56 +17,31 @@
 #ifndef IMU_VN_100_ROS_H_
 #define IMU_VN_100_ROS_H_
 
-#include <ros/ros.h>
-#include <diagnostic_updater/diagnostic_updater.h>
-#include <diagnostic_updater/publisher.h>
-#include <sensor_msgs/Imu.h>
-#include <sensor_msgs/MagneticField.h>
-#include <sensor_msgs/FluidPressure.h>
-#include <sensor_msgs/Temperature.h>
+#include <memory>
+#include <string>
+
+#include <geometry_msgs/msg/vector3_stamped.hpp>
+#include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/imu.hpp>
+#include <sensor_msgs/msg/magnetic_field.hpp>
+#include <sensor_msgs/msg/fluid_pressure.hpp>
+#include <sensor_msgs/msg/temperature.hpp>
 
 #include "vn100.h"
 
 namespace imu_vn_100 {
 
-namespace du = diagnostic_updater;
-using TopicDiagnosticPtr = std::shared_ptr<du::TopicDiagnostic>;
-
-// NOTE: there is a DiagnosedPublisher inside diagnostic_updater
-// but it does not have a default constructor thus we use this simple one
-// instead, which has the same functionality
-struct DiagnosedPublisher {
-  ros::Publisher pub;
-  TopicDiagnosticPtr diag;
-
-  template <typename MessageT>
-  void Create(ros::NodeHandle& pnh, const std::string& topic,
-              du::Updater& updater, double& rate) {
-    pub = pnh.advertise<MessageT>(topic, 1);
-    du::FrequencyStatusParam freq_param(&rate, &rate, 0.01, 10);
-    du::TimeStampStatusParam time_param(0, 0.5 / rate);
-    diag = std::make_shared<du::TopicDiagnostic>(topic, updater, freq_param,
-                                                 time_param);
-  }
-
-  template <typename MessageT>
-  void Publish(const MessageT& message) {
-    diag->tick(message.header.stamp);
-    pub.publish(message);
-  }
-};
-
 /**
  * @brief ImuVn100 The class is a ros wrapper for the Imu class
  * @author Ke Sun
  */
-class ImuVn100 {
+class ImuVn100 final : public rclcpp::Node {
  public:
   static constexpr int kBaseImuRate = 800;
   static constexpr int kDefaultImuRate = 100;
   static constexpr int kDefaultSyncOutRate = 20;
 
-  explicit ImuVn100(const ros::NodeHandle& pnh);
+  ImuVn100();
   ImuVn100(const ImuVn100&) = delete;
   ImuVn100& operator=(const ImuVn100&) = delete;
   ~ImuVn100();
@@ -89,14 +64,14 @@ class ImuVn100 {
 
   struct SyncInfo {
     unsigned count = 0;
-    ros::Time time;
+    rclcpp::Time time;
 
     int rate = -1;
     double rate_double = -1;
     int pulse_width_us = 1000;
     int skip_count = 0;
 
-    void Update(const unsigned sync_count, const ros::Time& sync_time);
+    void Update(const unsigned sync_count, const rclcpp::Time& sync_time);
     void FixSyncRate();
     bool SyncEnabled() const;
   };
@@ -104,7 +79,6 @@ class ImuVn100 {
   const SyncInfo sync_info() const { return sync_info_; }
 
  private:
-  ros::NodeHandle pnh_;
   Vn100 imu_;
 
   // Settings
@@ -139,17 +113,20 @@ class ImuVn100 {
 
   SyncInfo sync_info_;
 
-  du::Updater updater_;
-  DiagnosedPublisher pd_imu_, pd_mag_, pd_pres_, pd_temp_, pd_rpy_;
+  rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr pd_imu_;
+  rclcpp::Publisher<sensor_msgs::msg::MagneticField>::SharedPtr pd_mag_;
+  rclcpp::Publisher<sensor_msgs::msg::FluidPressure>::SharedPtr pd_pres_;
+  rclcpp::Publisher<sensor_msgs::msg::Temperature>::SharedPtr pd_temp_;
+  rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr pd_rpy_;
 
   void FixImuRate();
   void LoadParameters();
-  void CreateDiagnosedPublishers();
-};
+  void CreatePublishers();
 
-// Just don't like type that is ALL CAP
-using VnErrorCode = VN_ERROR_CODE;
-void VnEnsure(const VnErrorCode& error_code);
+  // Just don't like type that is ALL CAP
+  using VnErrorCode = VN_ERROR_CODE;
+  void VnEnsure(const VnErrorCode& error_code);
+};
 
 }  // namespace imu_vn_100
 

@@ -14,20 +14,26 @@
  * limitations under the License.
  */
 
-#include <ros/ros.h>
+#include <memory>
+
+#include <rclcpp/rclcpp.hpp>
 #include <imu_vn_100/imu_vn_100.h>
 
 using namespace imu_vn_100;
 
 int main(int argc, char** argv) {
-  ros::init(argc, argv, "imu_vn_100");
-  ros::NodeHandle pnh("~");
+  rclcpp::init(argc, argv);
 
-  try {
-    ImuVn100 imu(pnh);
-    imu.Stream(true);
-    ros::spin();
-  } catch (const std::exception& e) {
-    ROS_INFO("%s: %s", pnh.getNamespace().c_str(), e.what());
-  }
+  // Force flush of the stdout buffer, which ensures a sync of all prints
+  // even from a launch file.
+  setvbuf(stdout, nullptr, _IONBF, BUFSIZ);
+
+  auto imu = std::make_shared<imu_vn_100::ImuVn100>();
+  imu->Stream(true);
+
+  rclcpp::spin(imu);
+
+  rclcpp::shutdown();
+
+  return 0;
 }
