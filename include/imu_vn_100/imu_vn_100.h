@@ -30,7 +30,7 @@
 namespace imu_vn_100 {
 
 namespace du = diagnostic_updater;
-using TopicDiagnosticPtr = boost::shared_ptr<du::TopicDiagnostic>;
+using TopicDiagnosticPtr = std::shared_ptr<du::TopicDiagnostic>;
 
 // NOTE: there is a DiagnosedPublisher inside diagnostic_updater
 // but it does not have a default constructor thus we use this simple one
@@ -45,8 +45,8 @@ struct DiagnosedPublisher {
     pub = pnh.advertise<MessageT>(topic, 1);
     du::FrequencyStatusParam freq_param(&rate, &rate, 0.01, 10);
     du::TimeStampStatusParam time_param(0, 0.5 / rate);
-    diag = boost::make_shared<du::TopicDiagnostic>(topic, updater, freq_param,
-                                                   time_param);
+    diag = std::make_shared<du::TopicDiagnostic>(topic, updater, freq_param,
+                                                 time_param);
   }
 
   template <typename MessageT>

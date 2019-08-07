@@ -8,13 +8,11 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   diagnostic_updater
 )
-find_package(Boost REQUIRED)
 
 catkin_package(
   INCLUDE_DIRS include vncpplib/include
   LIBRARIES imu_vn_100
   CATKIN_DEPENDS diagnostic_updater roscpp sensor_msgs
-  DEPENDS Boost
 )
 
 include_directories(
