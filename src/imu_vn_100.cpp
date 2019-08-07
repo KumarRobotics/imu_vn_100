@@ -431,7 +431,8 @@ void ImuVn100::Idle(bool need_reply) {
 }
 
 void ImuVn100::Disconnect() {
-  // TODO: why reset the device?
+  // Reset the device so that the baud rate goes back to the default 115200 and
+  // subsequent runs of this node will be able to connect.
   vn100_reset(&imu_);
   vn100_disconnect(&imu_);
 }
