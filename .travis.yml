@@ -28,6 +28,7 @@ before_script: # Use this to prepare your build for testing e.g. copy database c
   - cd ~/ros2/catkin_ws/src
   - ln -s $CI_SOURCE_PATH . # Link the repo we are testing to the new workspace
   - rosdep install --from-paths . --ignore-src --rosdistro $ROS_DISTRO -y
+  - sudo apt install python3-colcon-common-extensions
   - source /opt/ros/$ROS_DISTRO/setup.bash
   - cd ../
 script: # All commands must exit with code 0 on success. Anything else is considered failure.
