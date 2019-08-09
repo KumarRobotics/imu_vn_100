@@ -4,9 +4,9 @@
 
 ![Picture of IMU](https://www.vectornav.com/images/default-source/products/vn-100-red-chip_right.png?sfvrsn=2302aad6_8)
 
-The `imu_vn_100` package is a linux ROS driver for VN-100 Rugged IMU of [VECTORNAV](http://www.vectornav.com/). The package is developed based on the official [SDK v0.3.2](http://www.vectornav.com/support/downloads) for Linux. The user manual for the device can be found [here](http://www.vectornav.com/docs/default-source/documentation/vn-100-documentation/UM001.pdf?sfvrsn=10).
+The `imu_vn_100` package is a Linux ROS 2 driver for VN-100 Rugged IMU of [VECTORNAV](http://www.vectornav.com/). The package is developed based on the official [SDK v0.3.2](http://www.vectornav.com/support/downloads) for Linux. The user manual for the device can be found [here](http://www.vectornav.com/docs/default-source/documentation/vn-100-documentation/UM001.pdf?sfvrsn=10).
 
-The package is tested on Ubuntu 14.04 with ROS indigo.
+The package is tested on Ubuntu 18.04 with ROS 2 Dashing.
 
 Note that the official SDK is modified within this package due to some bugs or unsupported features. Please carefully update the SDK, since the new SDK may not work with the provided software.
 
@@ -17,11 +17,11 @@ Note that the official SDK is modified within this package due to some bugs or u
 
 ## Compiling
 
-This is a Catkin package. Make sure the package is on `ROS_PACKAGE_PATH` after cloning the package to your workspace. And the normal procedure for compiling a catkin package will work.
+This is an Ament package. After cloning the package to your workspace, the normal procedure for compiling an ament package will work.
 
 ```
 cd your_work_space
-catkin_make --pkg imu_vn_100 --cmake-args -DCMAKE_BUILD_TYPE=Release
+colcon build --packages-select imu_vn_100 --cmake-args -DCMAKE_BUILD_TYPE=Release
 ```
 
 ## Example Usage
@@ -59,13 +59,13 @@ The rate of the sync out trigger signal. Note that the actual rate may not exact
 
 `binary_output` (`boolean`, `default: true`)
 
-Use binary  protocol for receiving messages instead of ASCII.
+Use binary protocol for receiving messages instead of ASCII.
 
 `binary_async_mode` (`int`, `default: 2`)
 
 Set serial port for binary messages to one of:
 
-* `1` - Serial port 1
+* `1` - Serial port 1 (this should be used if using the VN100-T Rugged with a USB Cable)
 * `2` - Serial port 2
 
 `imu_compensated` (`boolean`, `default: true`)
@@ -120,14 +120,6 @@ Temperature in degree Celsius
 
 Estimated roll (`x`), pitch (`y`) and yaw (`z`) angles in radians given as a 3,2,1 Euler angle rotation sequence describing the orientation of the sensor with respect to the inertial North East Down (NED) frame.
 
-**Node**
-
-With the provided launch file, do
-
-```
-roslaunch imu_vn_100 vn_100_cont.launch
-```
-
 ## FAQ
 
 1. The driver can't open my device?\
@@ -149,6 +141,9 @@ This may be due to a recent change in the FTDI USB-Serial driver in the Linux ke
       fi
     done
     ```
+4.  Why do I get 'VN: Permission denied' even after changing the permissions of the dev device?
+When using the VN-100T with a USB cable, only serial device 1 is configured, so using the default
+`binary_async_mode` of 2 will cause this error.  Set the `binary_async_mode` to `1` to make this work.
 
 ## Bugs or Features Required of the Official SDK
 

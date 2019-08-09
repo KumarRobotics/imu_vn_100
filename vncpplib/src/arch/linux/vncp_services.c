@@ -169,6 +169,7 @@ VN_ERROR_CODE vncp_comPort_isOptimized(
 	char const* portName,
 	bool* isOptimized)
 {
+        (void)portName;
 	/* Currently Linux USB COM ports don't need any optimization. */
 	*isOptimized = true;
 	
@@ -178,6 +179,7 @@ VN_ERROR_CODE vncp_comPort_isOptimized(
 VN_ERROR_CODE vncp_comPort_optimize(
 	char const* portName)
 {
+        (void)portName;
 	/* Nothing necessary to do on Linux machines. */
 	return VNERR_NO_ERROR;
 }
