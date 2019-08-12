@@ -14,22 +14,32 @@ find_package(ament_cmake_ros REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(Threads REQUIRED)
 
 include_directories(
   include
   vncpplib/include
 )
 
-add_library(imu_vn_100
+add_library(imu_vn_100_cpplib
   vncpplib/src/arch/linux/vncp_services.c
   vncpplib/src/vndevice.c
   vncpplib/src/vn100.c
+)
+target_link_libraries(imu_vn_100_cpplib
+  ${CMAKE_THREAD_LIBS_INIT}
+)
+
+add_library(imu_vn_100
   src/imu_vn_100.cpp
 )
 ament_target_dependencies(imu_vn_100
   geometry_msgs
   rclcpp
   sensor_msgs
+)
+target_link_libraries(imu_vn_100
+  imu_vn_100_cpplib
 )
 
 add_executable(imu_vn_100_node
@@ -39,14 +49,22 @@ ament_target_dependencies(imu_vn_100_node
 )
 target_link_libraries(imu_vn_100_node
   imu_vn_100
+  imu_vn_100_cpplib
 )
 
-install(TARGETS imu_vn_100
+add_executable(imu_vn_100_flash_baud_rate
+  src/imu_vn_100_flash_baud_rate.cpp
+)
+target_link_libraries(imu_vn_100_flash_baud_rate
+  imu_vn_100_cpplib
+)
+
+install(TARGETS imu_vn_100 imu_vn_100_cpplib
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
 )
 
-install(TARGETS imu_vn_100_node
+install(TARGETS imu_vn_100_node imu_vn_100_flash_baud_rate
   DESTINATION lib/${PROJECT_NAME}
 )
 
