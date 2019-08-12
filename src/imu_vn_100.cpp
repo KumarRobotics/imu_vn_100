@@ -325,8 +325,8 @@ void ImuVn100::Stream(bool async) {
 
     if (binary_output_) {
       // Set the binary output data type and data rate
-      uint16_t grp1 = BG1_QTN | BG1_SYNC_IN_CNT;
-      std::list<std::string> sgrp1 = {"BG1_QTN", "BG1_SYNC_IN_CNT"};
+      uint16_t grp1 = BG1_QTN | BG1_SYNC_IN_CNT | BG1_TIME_STARTUP;
+      std::list<std::string> sgrp1 = {"BG1_QTN", "BG1_SYNC_IN_CNT", "BG1_TIME_STARTUP"};
       if (enable_rpy_) {
         grp1 |= BG1_YPR;
         sgrp1.push_back("BG1_YPR");
@@ -438,7 +438,13 @@ void ImuVn100::Disconnect() {
 }
 
 void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
-  rclcpp::Time now = this->now();
+  if (!has_time_zero_) {
+    device_time_zero_ = data.timeStartup;
+    ros_time_zero_ = this->now();
+    has_time_zero_ = true;
+  }
+
+  rclcpp::Time now = ros_time_zero_ + rclcpp::Duration(data.timeStartup - device_time_zero_);
 
   auto imu_msg = std::make_unique<sensor_msgs::msg::Imu>();
   imu_msg->header.stamp = now;
