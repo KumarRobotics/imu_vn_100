@@ -82,10 +82,8 @@ void ImuVn100::SyncInfo::FixSyncRate() {
   }
 }
 
-ImuVn100::ImuVn100() : rclcpp::Node("imu_vn_100"),
-      port_(std::string("/dev/ttyUSB0")),
-      baudrate_(921600),
-      frame_id_(std::string("imu")) {
+ImuVn100::ImuVn100() : rclcpp::Node("imu_vn_100")
+{
   Initialize();
   imu_vn_100_ptr = this;
 }
@@ -110,6 +108,8 @@ void ImuVn100::LoadParameters() {
   port_ = declare_parameter("port", std::string("/dev/ttyUSB0"));
   frame_id_ = declare_parameter("frame_id", std::string("imu_link"));
   imu_rate_ = declare_parameter("imu_rate", kDefaultImuRate);
+  initial_baudrate_ = declare_parameter("initial_baudrate", 115200);
+  baudrate_ = declare_parameter("baudrate", 921600);
 
   enable_mag_ = declare_parameter("enable_mag", true);
   enable_pres_ = declare_parameter("enable_pres", true);
@@ -176,25 +176,27 @@ void ImuVn100::Initialize() {
   LoadParameters();
 
   RCLCPP_DEBUG(get_logger(), "Connecting to device");
-  VnEnsure(vn100_connect(&imu_, port_.c_str(), 115200));
+  VnEnsure(vn100_connect(&imu_, port_.c_str(), initial_baudrate_));
   rclcpp::sleep_for(std::chrono::milliseconds(500));
   RCLCPP_INFO(get_logger(), "Connected to device at %s", port_.c_str());
 
-  unsigned int old_baudrate;
+  uint32_t old_baudrate;
   VnEnsure(vn100_getSerialBaudRate(&imu_, &old_baudrate));
   RCLCPP_INFO(get_logger(), "Default serial baudrate: %u", old_baudrate);
 
-  RCLCPP_INFO(get_logger(), "Set serial baudrate to %d", baudrate_);
-  VnEnsure(vn100_setSerialBaudRate(&imu_, baudrate_, true));
+  if (initial_baudrate_ != baudrate_) {
+    RCLCPP_INFO(get_logger(), "Set serial baudrate to %u", baudrate_);
+    VnEnsure(vn100_setSerialBaudRate(&imu_, baudrate_, true));
 
-  RCLCPP_DEBUG(get_logger(), "Disconnecting the device");
-  vn100_disconnect(&imu_);
-  rclcpp::sleep_for(std::chrono::milliseconds(500));
+    RCLCPP_DEBUG(get_logger(), "Disconnecting the device");
+    vn100_disconnect(&imu_);
+    rclcpp::sleep_for(std::chrono::milliseconds(500));
 
-  RCLCPP_DEBUG(get_logger(), "Reconnecting to device");
-  VnEnsure(vn100_connect(&imu_, port_.c_str(), baudrate_));
-  rclcpp::sleep_for(std::chrono::milliseconds(500));
-  RCLCPP_INFO(get_logger(), "Connected to device at %s", port_.c_str());
+    RCLCPP_DEBUG(get_logger(), "Reconnecting to device");
+    VnEnsure(vn100_connect(&imu_, port_.c_str(), baudrate_));
+    rclcpp::sleep_for(std::chrono::milliseconds(500));
+    RCLCPP_INFO(get_logger(), "Connected to device at %s", port_.c_str());
+  }
 
   VnEnsure(vn100_getSerialBaudRate(&imu_, &old_baudrate));
   RCLCPP_INFO(get_logger(), "New serial baudrate: %u", old_baudrate);

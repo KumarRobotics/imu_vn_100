@@ -83,8 +83,9 @@ class ImuVn100 final : public rclcpp::Node {
 
   // Settings
   std::string port_;
-  int baudrate_ = 921600;
-  int imu_rate_ = kDefaultImuRate;
+  uint32_t baudrate_;
+  uint32_t initial_baudrate_;
+  int imu_rate_;
   double imu_rate_double_ = kDefaultImuRate;
   std::string frame_id_;
 
