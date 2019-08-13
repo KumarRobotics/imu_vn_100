@@ -83,27 +83,26 @@ class ImuVn100 final : public rclcpp::Node {
 
   // Settings
   std::string port_;
-  int baudrate_ = 921600;
-  int imu_rate_ = kDefaultImuRate;
-  double imu_rate_double_ = kDefaultImuRate;
+  uint32_t baudrate_;
+  uint32_t initial_baudrate_;
+  int imu_rate_;
+  double imu_rate_double_;
   std::string frame_id_;
 
-  bool enable_mag_ = true;
-  bool enable_pres_ = true;
-  bool enable_temp_ = true;
-  bool enable_rpy_ = false;
+  bool enable_mag_;
+  bool enable_pres_;
+  bool enable_temp_;
+  bool enable_rpy_;
 
-  bool binary_output_ = true;
-  int binary_async_mode_ = BINARY_ASYNC_MODE_SERIAL_2;
+  bool binary_output_;
+  int binary_async_mode_;
 
-  bool imu_compensated_ = false;
+  bool imu_compensated_;
 
-  bool tf_ned_to_enu_ = false;
-
-  bool vpe_enable_ = true;
-  int vpe_heading_mode_ = 1;
-  int vpe_filtering_mode_ = 1;
-  int vpe_tuning_mode_ = 1;
+  bool vpe_enable_;
+  int vpe_heading_mode_;
+  int vpe_filtering_mode_;
+  int vpe_tuning_mode_;
   VnVector3 vpe_mag_base_tuning_;
   VnVector3 vpe_mag_adaptive_tuning_;
   VnVector3 vpe_mag_adaptive_filtering_;

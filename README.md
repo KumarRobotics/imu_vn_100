@@ -36,6 +36,10 @@ Port which the device connected to. This can be checked by command `dmesg`.
 
 The frame ID entry for the sent messages.
 
+`initial_baudrate` (`int`, `115200`)
+
+The baud rate to use to initially connect to the serial port.  Out of the box, the device will use 115200 (the default).  However, it is possible to change the default baud rate permanently on the device using the `imu_vn100_flash_baud_rate` utility.  For maximum reliability, this should be set to the same as the `baudrate` below (think about the case where the node crashes; it got set to the `baudrate` value, but if we try to reconnect at a different rate it will fail).
+
 `baudrate` (`int`, `921600`)
 
 The baud rate of the serial port. The available baud rates can be checked on the user manual. It is suggested that the baud rate is kept at `921600` to ensure the high frequency transmission. The device will send `permission denied` error code if the baud rate cannot support the desired data package at the desired frequency.
