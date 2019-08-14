@@ -124,31 +124,31 @@ void ImuVn100::LoadParameters() {
 
   imu_compensated_ = declare_parameter("imu_compensated", false);
 
-  vpe_enable_ = declare_parameter("vpe/enable", true);
+  vpe_enable_ = declare_parameter("vpe.enable", true);
 
-  vpe_heading_mode_ = declare_parameter("vpe/heading_mode", 1);
-  vpe_filtering_mode_ = declare_parameter("vpe/filtering_mode", 1);
-  vpe_tuning_mode_ = declare_parameter("vpe/tuning_mode", 1);
+  vpe_heading_mode_ = declare_parameter("vpe.heading_mode", 1);
+  vpe_filtering_mode_ = declare_parameter("vpe.filtering_mode", 1);
+  vpe_tuning_mode_ = declare_parameter("vpe.tuning_mode", 1);
 
-  vpe_mag_base_tuning_.c0 = declare_parameter("vpe/mag_tuning/base_tuning/x", 4.0);
-  vpe_mag_base_tuning_.c1 = declare_parameter("vpe/mag_tuning/base_tuning/y", 4.0);
-  vpe_mag_base_tuning_.c2 = declare_parameter("vpe/mag_tuning/base_tuning/z", 4.0);
-  vpe_mag_adaptive_tuning_.c0 = declare_parameter("vpe/mag_tuning/adaptive_tuning/x", 5.0);
-  vpe_mag_adaptive_tuning_.c1 = declare_parameter("vpe/mag_tuning/adaptive_tuning/y", 5.0);
-  vpe_mag_adaptive_tuning_.c2 = declare_parameter("vpe/mag_tuning/adaptive_tuning/z", 5.0);
-  vpe_mag_adaptive_filtering_.c0 = declare_parameter("vpe/mag_tuning/adaptive_filtering/x", 5.5);
-  vpe_mag_adaptive_filtering_.c1 = declare_parameter("vpe/mag_tuning/adaptive_filtering/y", 5.5);
-  vpe_mag_adaptive_filtering_.c2 = declare_parameter("vpe/mag_tuning/adaptive_filtering/z", 5.5);
+  vpe_mag_base_tuning_.c0 = declare_parameter("vpe.mag_tuning.base_tuning.x", 4.0);
+  vpe_mag_base_tuning_.c1 = declare_parameter("vpe.mag_tuning.base_tuning.y", 4.0);
+  vpe_mag_base_tuning_.c2 = declare_parameter("vpe.mag_tuning.base_tuning.z", 4.0);
+  vpe_mag_adaptive_tuning_.c0 = declare_parameter("vpe.mag_tuning.adaptive_tuning.x", 5.0);
+  vpe_mag_adaptive_tuning_.c1 = declare_parameter("vpe.mag_tuning.adaptive_tuning.y", 5.0);
+  vpe_mag_adaptive_tuning_.c2 = declare_parameter("vpe.mag_tuning.adaptive_tuning.z", 5.0);
+  vpe_mag_adaptive_filtering_.c0 = declare_parameter("vpe.mag_tuning.adaptive_filtering.x", 5.5);
+  vpe_mag_adaptive_filtering_.c1 = declare_parameter("vpe.mag_tuning.adaptive_filtering.y", 5.5);
+  vpe_mag_adaptive_filtering_.c2 = declare_parameter("vpe.mag_tuning.adaptive_filtering.z", 5.5);
 
-  vpe_accel_base_tuning_.c0 = declare_parameter("vpe/accel_tuning/base_tuning/x", 5.0);
-  vpe_accel_base_tuning_.c1 = declare_parameter("vpe/accel_tuning/base_tuning/y", 5.0);
-  vpe_accel_base_tuning_.c2 = declare_parameter("vpe/accel_tuning/base_tuning/z", 5.0);
-  vpe_accel_adaptive_tuning_.c0 = declare_parameter("vpe/accel_tuning/adaptive_tuning/x", 3.0);
-  vpe_accel_adaptive_tuning_.c1 = declare_parameter("vpe/accel_tuning/adaptive_tuning/y", 3.0);
-  vpe_accel_adaptive_tuning_.c2 = declare_parameter("vpe/accel_tuning/adaptive_tuning/z", 3.0);
-  vpe_accel_adaptive_filtering_.c0 = declare_parameter("vpe/accel_tuning/adaptive_filtering/x", 4.0);
-  vpe_accel_adaptive_filtering_.c1 = declare_parameter("vpe/accel_tuning/adaptive_filtering/y", 4.0);
-  vpe_accel_adaptive_filtering_.c2 = declare_parameter("vpe/accel_tuning/adaptive_filtering/z", 4.0);
+  vpe_accel_base_tuning_.c0 = declare_parameter("vpe.accel_tuning.base_tuning.x", 5.0);
+  vpe_accel_base_tuning_.c1 = declare_parameter("vpe.accel_tuning.base_tuning.y", 5.0);
+  vpe_accel_base_tuning_.c2 = declare_parameter("vpe.accel_tuning.base_tuning.z", 5.0);
+  vpe_accel_adaptive_tuning_.c0 = declare_parameter("vpe.accel_tuning.adaptive_tuning.x", 3.0);
+  vpe_accel_adaptive_tuning_.c1 = declare_parameter("vpe.accel_tuning.adaptive_tuning.y", 3.0);
+  vpe_accel_adaptive_tuning_.c2 = declare_parameter("vpe.accel_tuning.adaptive_tuning.z", 3.0);
+  vpe_accel_adaptive_filtering_.c0 = declare_parameter("vpe.accel_tuning.adaptive_filtering.x", 4.0);
+  vpe_accel_adaptive_filtering_.c1 = declare_parameter("vpe.accel_tuning.adaptive_filtering.y", 4.0);
+  vpe_accel_adaptive_filtering_.c2 = declare_parameter("vpe.accel_tuning.adaptive_filtering.z", 4.0);
 
   FixImuRate();
   sync_info_.FixSyncRate();
