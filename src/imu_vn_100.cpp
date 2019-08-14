@@ -175,14 +175,15 @@ void ImuVn100::CreatePublishers() {
 void ImuVn100::Initialize() {
   LoadParameters();
 
-  RCLCPP_DEBUG(get_logger(), "Connecting to device");
+  RCLCPP_INFO(get_logger(), "Connecting to device %s at baudrate %u", port_.c_str(), initial_baudrate_);
   VnEnsure(vn100_connect(&imu_, port_.c_str(), initial_baudrate_));
   rclcpp::sleep_for(std::chrono::milliseconds(500));
-  RCLCPP_INFO(get_logger(), "Connected to device at %s", port_.c_str());
 
   uint32_t old_baudrate;
   VnEnsure(vn100_getSerialBaudRate(&imu_, &old_baudrate));
-  RCLCPP_INFO(get_logger(), "Default serial baudrate: %u", old_baudrate);
+  // We don't know if we've successfully connected until an operation succeeds,
+  // so only print this once `getSerialBaudRate` has succeeded.
+  RCLCPP_INFO(get_logger(), "Connected to device %s at baudrate %u", port_.c_str(), old_baudrate);
 
   if (initial_baudrate_ != baudrate_) {
     RCLCPP_INFO(get_logger(), "Set serial baudrate to %u", baudrate_);
