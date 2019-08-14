@@ -1,0 +1,47 @@
+imu_vn_100:
+    ros__parameters:
+        port: /dev/ttyUSB0
+        frame_id: imu_link
+        imu_rate: 100
+        initial_baudrate: 115200
+        baudrate: 921600
+        enable_mag: true
+        enable_pres: true
+        enable_temp: true
+        enable_rpy: false
+        sync_rate: 20
+        sync_pulse_width_us: 1000
+        binary_output: true
+        binary_async_mode: 2
+        imu_compensated: false
+        vpe:
+            enable: true
+            heading_mode: 1
+            filtering_mode: 1
+            tuning_mode: 1
+            mag_tuning:
+                base_tuning:
+                    x: 4.0
+                    y: 4.0
+                    z: 4.0
+                adaptive_tuning:
+                    x: 5.0
+                    y: 5.0
+                    z: 5.0
+                adaptive_filtering:
+                    x: 5.5
+                    y: 5.5
+                    z: 5.5
+            accel_tuning:
+                base_tuning:
+                    x: 5.0
+                    y: 5.0
+                    z: 5.0
+                adaptive_tuning:
+                    x: 3.0
+                    y: 3.0
+                    z: 3.0
+                adaptive_filtering:
+                    x: 4.0
+                    y: 4.0
+                    z: 4.0
