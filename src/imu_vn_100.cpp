@@ -514,23 +514,19 @@ void ImuVn100::VnEnsure(const VnErrorCode& error_code) {
     case VNERR_NOT_IMPLEMENTED:
       throw std::runtime_error("VN: Not implemented");
     case VNERR_TIMEOUT:
-      RCLCPP_WARN(get_logger(), "Operation timed out");
-      break;
+      throw std::runtime_error("VN: Operation timed out");
     case VNERR_SENSOR_INVALID_PARAMETER:
-      RCLCPP_WARN(get_logger(), "VN: Sensor invalid paramter");
-      break;
+      throw std::runtime_error("VN: Sensor invalid paramter");
     case VNERR_INVALID_VALUE:
-      RCLCPP_WARN(get_logger(), "VN: Invalid value");
-      break;
+      throw std::runtime_error("VN: Invalid value");
     case VNERR_FILE_NOT_FOUND:
-      RCLCPP_WARN(get_logger(), "VN: File not found");
-      break;
+      throw std::runtime_error("VN: File not found");
     case VNERR_NOT_CONNECTED:
       throw std::runtime_error("VN: not connected");
     case VNERR_PERMISSION_DENIED:
       throw std::runtime_error("VN: Permission denied");
     default:
-      RCLCPP_WARN(get_logger(), "Unhandled error type");
+      throw std::runtime_error("VN: Unhandled error type");
   }
 }
 
