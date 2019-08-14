@@ -441,8 +441,8 @@ void ImuVn100::Disconnect() {
 
 void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
   if (!has_time_zero_) {
-    device_time_zero_ = data.timeStartup;
     ros_time_zero_ = this->now();
+    device_time_zero_ = data.timeStartup;
     has_time_zero_ = true;
   }
 
