@@ -68,4 +68,10 @@ install(TARGETS imu_vn_100_node imu_vn_100_flash_baud_rate
   DESTINATION lib/${PROJECT_NAME}
 )
 
+install(DIRECTORY
+  config
+  launch
+  DESTINATION share/${PROJECT_NAME}
+)
+
 ament_package()

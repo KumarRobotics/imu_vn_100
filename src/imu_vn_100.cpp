@@ -124,31 +124,31 @@ void ImuVn100::LoadParameters() {
 
   imu_compensated_ = declare_parameter("imu_compensated", false);
 
-  vpe_enable_ = declare_parameter("vpe/enable", true);
+  vpe_enable_ = declare_parameter("vpe.enable", true);
 
-  vpe_heading_mode_ = declare_parameter("vpe/heading_mode", 1);
-  vpe_filtering_mode_ = declare_parameter("vpe/filtering_mode", 1);
-  vpe_tuning_mode_ = declare_parameter("vpe/tuning_mode", 1);
+  vpe_heading_mode_ = declare_parameter("vpe.heading_mode", 1);
+  vpe_filtering_mode_ = declare_parameter("vpe.filtering_mode", 1);
+  vpe_tuning_mode_ = declare_parameter("vpe.tuning_mode", 1);
 
-  vpe_mag_base_tuning_.c0 = declare_parameter("vpe/mag_tuning/base_tuning/x", 4.0);
-  vpe_mag_base_tuning_.c1 = declare_parameter("vpe/mag_tuning/base_tuning/y", 4.0);
-  vpe_mag_base_tuning_.c2 = declare_parameter("vpe/mag_tuning/base_tuning/z", 4.0);
-  vpe_mag_adaptive_tuning_.c0 = declare_parameter("vpe/mag_tuning/adaptive_tuning/x", 5.0);
-  vpe_mag_adaptive_tuning_.c1 = declare_parameter("vpe/mag_tuning/adaptive_tuning/y", 5.0);
-  vpe_mag_adaptive_tuning_.c2 = declare_parameter("vpe/mag_tuning/adaptive_tuning/z", 5.0);
-  vpe_mag_adaptive_filtering_.c0 = declare_parameter("vpe/mag_tuning/adaptive_filtering/x", 5.5);
-  vpe_mag_adaptive_filtering_.c1 = declare_parameter("vpe/mag_tuning/adaptive_filtering/y", 5.5);
-  vpe_mag_adaptive_filtering_.c2 = declare_parameter("vpe/mag_tuning/adaptive_filtering/z", 5.5);
+  vpe_mag_base_tuning_.c0 = declare_parameter("vpe.mag_tuning.base_tuning.x", 4.0);
+  vpe_mag_base_tuning_.c1 = declare_parameter("vpe.mag_tuning.base_tuning.y", 4.0);
+  vpe_mag_base_tuning_.c2 = declare_parameter("vpe.mag_tuning.base_tuning.z", 4.0);
+  vpe_mag_adaptive_tuning_.c0 = declare_parameter("vpe.mag_tuning.adaptive_tuning.x", 5.0);
+  vpe_mag_adaptive_tuning_.c1 = declare_parameter("vpe.mag_tuning.adaptive_tuning.y", 5.0);
+  vpe_mag_adaptive_tuning_.c2 = declare_parameter("vpe.mag_tuning.adaptive_tuning.z", 5.0);
+  vpe_mag_adaptive_filtering_.c0 = declare_parameter("vpe.mag_tuning.adaptive_filtering.x", 5.5);
+  vpe_mag_adaptive_filtering_.c1 = declare_parameter("vpe.mag_tuning.adaptive_filtering.y", 5.5);
+  vpe_mag_adaptive_filtering_.c2 = declare_parameter("vpe.mag_tuning.adaptive_filtering.z", 5.5);
 
-  vpe_accel_base_tuning_.c0 = declare_parameter("vpe/accel_tuning/base_tuning/x", 5.0);
-  vpe_accel_base_tuning_.c1 = declare_parameter("vpe/accel_tuning/base_tuning/y", 5.0);
-  vpe_accel_base_tuning_.c2 = declare_parameter("vpe/accel_tuning/base_tuning/z", 5.0);
-  vpe_accel_adaptive_tuning_.c0 = declare_parameter("vpe/accel_tuning/adaptive_tuning/x", 3.0);
-  vpe_accel_adaptive_tuning_.c1 = declare_parameter("vpe/accel_tuning/adaptive_tuning/y", 3.0);
-  vpe_accel_adaptive_tuning_.c2 = declare_parameter("vpe/accel_tuning/adaptive_tuning/z", 3.0);
-  vpe_accel_adaptive_filtering_.c0 = declare_parameter("vpe/accel_tuning/adaptive_filtering/x", 4.0);
-  vpe_accel_adaptive_filtering_.c1 = declare_parameter("vpe/accel_tuning/adaptive_filtering/y", 4.0);
-  vpe_accel_adaptive_filtering_.c2 = declare_parameter("vpe/accel_tuning/adaptive_filtering/z", 4.0);
+  vpe_accel_base_tuning_.c0 = declare_parameter("vpe.accel_tuning.base_tuning.x", 5.0);
+  vpe_accel_base_tuning_.c1 = declare_parameter("vpe.accel_tuning.base_tuning.y", 5.0);
+  vpe_accel_base_tuning_.c2 = declare_parameter("vpe.accel_tuning.base_tuning.z", 5.0);
+  vpe_accel_adaptive_tuning_.c0 = declare_parameter("vpe.accel_tuning.adaptive_tuning.x", 3.0);
+  vpe_accel_adaptive_tuning_.c1 = declare_parameter("vpe.accel_tuning.adaptive_tuning.y", 3.0);
+  vpe_accel_adaptive_tuning_.c2 = declare_parameter("vpe.accel_tuning.adaptive_tuning.z", 3.0);
+  vpe_accel_adaptive_filtering_.c0 = declare_parameter("vpe.accel_tuning.adaptive_filtering.x", 4.0);
+  vpe_accel_adaptive_filtering_.c1 = declare_parameter("vpe.accel_tuning.adaptive_filtering.y", 4.0);
+  vpe_accel_adaptive_filtering_.c2 = declare_parameter("vpe.accel_tuning.adaptive_filtering.z", 4.0);
 
   FixImuRate();
   sync_info_.FixSyncRate();
@@ -175,14 +175,15 @@ void ImuVn100::CreatePublishers() {
 void ImuVn100::Initialize() {
   LoadParameters();
 
-  RCLCPP_DEBUG(get_logger(), "Connecting to device");
+  RCLCPP_INFO(get_logger(), "Connecting to device %s at baudrate %u", port_.c_str(), initial_baudrate_);
   VnEnsure(vn100_connect(&imu_, port_.c_str(), initial_baudrate_));
   rclcpp::sleep_for(std::chrono::milliseconds(500));
-  RCLCPP_INFO(get_logger(), "Connected to device at %s", port_.c_str());
 
   uint32_t old_baudrate;
   VnEnsure(vn100_getSerialBaudRate(&imu_, &old_baudrate));
-  RCLCPP_INFO(get_logger(), "Default serial baudrate: %u", old_baudrate);
+  // We don't know if we've successfully connected until an operation succeeds,
+  // so only print this once `getSerialBaudRate` has succeeded.
+  RCLCPP_INFO(get_logger(), "Connected to device %s at baudrate %u", port_.c_str(), old_baudrate);
 
   if (initial_baudrate_ != baudrate_) {
     RCLCPP_INFO(get_logger(), "Set serial baudrate to %u", baudrate_);
@@ -441,8 +442,8 @@ void ImuVn100::Disconnect() {
 
 void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
   if (!has_time_zero_) {
-    device_time_zero_ = data.timeStartup;
     ros_time_zero_ = this->now();
+    device_time_zero_ = data.timeStartup;
     has_time_zero_ = true;
   }
 
@@ -514,23 +515,19 @@ void ImuVn100::VnEnsure(const VnErrorCode& error_code) {
     case VNERR_NOT_IMPLEMENTED:
       throw std::runtime_error("VN: Not implemented");
     case VNERR_TIMEOUT:
-      RCLCPP_WARN(get_logger(), "Operation timed out");
-      break;
+      throw std::runtime_error("VN: Operation timed out");
     case VNERR_SENSOR_INVALID_PARAMETER:
-      RCLCPP_WARN(get_logger(), "VN: Sensor invalid paramter");
-      break;
+      throw std::runtime_error("VN: Sensor invalid paramter");
     case VNERR_INVALID_VALUE:
-      RCLCPP_WARN(get_logger(), "VN: Invalid value");
-      break;
+      throw std::runtime_error("VN: Invalid value");
     case VNERR_FILE_NOT_FOUND:
-      RCLCPP_WARN(get_logger(), "VN: File not found");
-      break;
+      throw std::runtime_error("VN: File not found");
     case VNERR_NOT_CONNECTED:
       throw std::runtime_error("VN: not connected");
     case VNERR_PERMISSION_DENIED:
       throw std::runtime_error("VN: Permission denied");
     default:
-      RCLCPP_WARN(get_logger(), "Unhandled error type");
+      throw std::runtime_error("VN: Unhandled error type");
   }
 }
 
