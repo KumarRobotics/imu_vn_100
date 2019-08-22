@@ -38,6 +38,14 @@ std::ostream& operator<<(std::ostream& os, const VnVector3& v) {
   return os;
 }
 
+std::string VectorToString(const std::vector<std::string>& vec) {
+  std::string str;
+  for (const auto& v : vec) {
+    str += v + " | ";
+  }
+  return str;
+}
+
 Vector3 RosVecFromVnVec(const VnVector3& u) {
   Vector3 v;
   v.x = u.c0;
@@ -98,6 +106,7 @@ ImuVn100::ImuVn100(const ros::NodeHandle& pnh)
       frame_id_(std::string("imu")) {
   Initialize();
   imu_vn_100_ptr = this;
+  ROS_INFO_STREAM("Diagnostic period: " << updater_.getPeriod() << " s");
 }
 
 ImuVn100::~ImuVn100() { Disconnect(); }
@@ -122,11 +131,6 @@ void ImuVn100::LoadParameters() {
   pnh_.param("baudrate", baudrate_, 115200);
   pnh_.param("imu_rate", imu_rate_, kDefaultImuRate);
 
-  pnh_.param("enable_mag", enable_mag_, true);
-  pnh_.param("enable_pres", enable_pres_, true);
-  pnh_.param("enable_temp", enable_temp_, true);
-  pnh_.param("enable_rpy", enable_rpy_, false);
-
   pnh_.param("sync_rate", sync_info_.rate, kDefaultSyncOutRate);
   pnh_.param("sync_pulse_width_us", sync_info_.pulse_width_us, 1000);
 
@@ -134,7 +138,7 @@ void ImuVn100::LoadParameters() {
   pnh_.param("binary_async_mode", binary_async_mode_,
              BINARY_ASYNC_MODE_SERIAL_2);
 
-  pnh_.param("imu_compensated", imu_compensated_, false);
+  pnh_.param("compensated", compensated_, false);
 
   pnh_.param("vpe/enable", vpe_enable_, true);
   pnh_.param("vpe/heading_mode", vpe_heading_mode_, 1);
@@ -182,22 +186,28 @@ void ImuVn100::CreatePublishers() {
 
   pub_dt_ = pnh_.advertise<std_msgs::Float64>("dt", 1);
 
-  pd_imu_.Create<Imu>(pnh_, "imu", updater_, imu_rate_double_);
+  pub_imu_.Advertise<Imu>(pnh_, "imu", updater_, imu_rate_double_);
+  ROS_INFO("Publish imu to %s", pub_imu_.pub.getTopic().c_str());
 
-  if (enable_mag_) {
-    pd_mag_.Create<MagneticField>(pnh_, "magnetic_field", updater_,
-                                  imu_rate_double_);
+  if (pnh_.param("enable_mag", true)) {
+    pub_mag_.Advertise<MagneticField>(pnh_, "magnetic_field", updater_,
+                                      imu_rate_double_);
+    ROS_INFO("Publish magnetic filed to %s", pub_mag_.pub.getTopic().c_str());
   }
-  if (enable_pres_) {
-    pd_pres_.Create<FluidPressure>(pnh_, "fluid_pressure", updater_,
-                                   imu_rate_double_);
+
+  if (pnh_.param("enable_pres", true)) {
+    pub_pres_.Advertise<FluidPressure>(pnh_, "fluid_pressure", updater_,
+                                       imu_rate_double_);
+    ROS_INFO("Publish pressure to %s", pub_pres_.pub.getTopic().c_str());
   }
-  if (enable_temp_) {
-    pd_temp_.Create<Temperature>(pnh_, "temperature", updater_,
-                                 imu_rate_double_);
+  if (pnh_.param("enable_temp", true)) {
+    pub_temp_.Advertise<Temperature>(pnh_, "temperature", updater_,
+                                     imu_rate_double_);
+    ROS_INFO("Publish temperature to %s", pub_temp_.pub.getTopic().c_str());
   }
-  if (enable_rpy_) {
-    pd_rpy_.Create<Vector3Stamped>(pnh_, "rpy", updater_, imu_rate_double_);
+  if (pnh_.param("enable_rpy", false)) {
+    pub_rpy_.Advertise<Vector3Stamped>(pnh_, "rpy", updater_, imu_rate_double_);
+    ROS_INFO("Publish rpy to %s", pub_rpy_.pub.getTopic().c_str());
   }
 }
 
@@ -314,8 +324,9 @@ void ImuVn100::Initialize() {
 
   CreatePublishers();
 
-  auto hardware_id = std::string("vn100-") + std::string(model_number_buffer) +
-                     std::string(serial_number_buffer);
+  const auto hardware_id = std::string("vn100-") +
+                           std::string(model_number_buffer) +
+                           std::string(serial_number_buffer);
   updater_.setHardwareID(hardware_id);
 }
 
@@ -332,62 +343,48 @@ void ImuVn100::Stream(bool async) {
       uint16_t grp1 = BG1_QTN | BG1_SYNC_IN_CNT | BG1_TIME_STARTUP;
       std::vector<std::string> sgrp1 = {"BG1_QTN", "BG1_SYNC_IN_CNT",
                                         "BG1_TIME_STARTUP"};
-      if (enable_rpy_) {
+      if (pub_imu_) {
         grp1 |= BG1_YPR;
         sgrp1.push_back("BG1_YPR");
       }
+
       uint16_t grp3 = BG3_NONE;
       std::vector<std::string> sgrp3;
+
       uint16_t grp5 = BG5_NONE;
       std::vector<std::string> sgrp5;
-      if (imu_compensated_) {
+
+      if (compensated_) {
         grp1 |= BG1_ACCEL | BG1_ANGULAR_RATE;
         sgrp1.push_back("BG1_ACCEL");
         sgrp1.push_back("BG1_ANGULAR_RATE");
-        if (enable_mag_) {
+        if (pub_mag_) {
           grp3 |= BG3_MAG;
           sgrp3.push_back("BG3_MAG");
         }
       } else {
         grp1 |= BG1_IMU;
         sgrp1.push_back("BG1_IMU");
-        if (enable_mag_) {
+        if (pub_mag_) {
           grp3 |= BG3_UNCOMP_MAG;
           sgrp3.push_back("BG3_UNCOMP_MAG");
         }
       }
-      if (enable_temp_) {
+
+      if (pub_temp_) {
         grp3 |= BG3_TEMP;
         sgrp3.push_back("BG3_TEMP");
       }
-      if (enable_pres_) {
+
+      if (pub_pres_) {
         grp3 |= BG3_PRES;
         sgrp3.push_back("BG3_PRES");
       }
-      if (!sgrp1.empty()) {
-        std::stringstream ss;
-        std::copy(sgrp1.begin(), sgrp1.end(),
-                  std::ostream_iterator<std::string>(ss, "|"));
-        std::string s = ss.str();
-        s.pop_back();
-        ROS_INFO("Streaming #1: %s", s.c_str());
-      }
-      if (!sgrp3.empty()) {
-        std::stringstream ss;
-        std::copy(sgrp3.begin(), sgrp3.end(),
-                  std::ostream_iterator<std::string>(ss, "|"));
-        std::string s = ss.str();
-        s.pop_back();
-        ROS_INFO("Streaming #3: %s", s.c_str());
-      }
-      if (!sgrp5.empty()) {
-        std::stringstream ss;
-        std::copy(sgrp5.begin(), sgrp5.end(),
-                  std::ostream_iterator<std::string>(ss, "|"));
-        std::string s = ss.str();
-        s.pop_back();
-        ROS_INFO("Streaming #5: %s", s.c_str());
-      }
+
+      ROS_INFO("Streaming #1: %s", VectorToString(sgrp1).c_str());
+      ROS_INFO("Streaming #3: %s", VectorToString(sgrp3).c_str());
+      ROS_INFO("Streaming #5: %s", VectorToString(sgrp5).c_str());
+
       VnEnsure(vn100_setBinaryOutput1Configuration(&imu_, binary_async_mode_,
                                                    kBaseImuRate / imu_rate_,
                                                    grp1, grp3, grp5, true));
@@ -426,15 +423,17 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
     ros_time_zero_ = ros::Time::now();
     device_time_zero_ = data.timeStartup;
     ROS_INFO_STREAM("Set device time zero to " << device_time_zero_);
+    ROS_INFO_STREAM("Set ros time zero to " << ros_time_zero_.toSec());
   }
 
   ros::Duration dt;
   dt.fromNSec(data.timeStartup - device_time_zero_);
   const ros::Time stamp = ros_time_zero_ + dt;
 
-  if (dt.toSec() < 0) {
+  if (dt.toNSec() < 0) {
     // This should never happen, but we check for it anyway
-    ROS_WARN_STREAM("dt: " << dt.toSec() << ", startup: " << data.timeStartup
+    ROS_WARN_STREAM("dt: " << dt.toNSec()
+                           << " ns, startup: " << data.timeStartup
                            << ", zero: " << device_time_zero_);
   }
 
@@ -446,11 +445,12 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
 
   ros_time_last_ = stamp;
 
+  // Fill in data
   Imu imu_msg;
   imu_msg.header.stamp = stamp;
   imu_msg.header.frame_id = frame_id_;
 
-  if (imu_compensated_) {
+  if (compensated_) {
     imu_msg.linear_acceleration = RosVecFromVnVec(data.acceleration);
     imu_msg.angular_velocity = RosVecFromVnVec(data.angularRate);
   } else {
@@ -465,40 +465,43 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
     imu_msg.orientation = RosQuatFromVnQuat(data.quaternion);
   }
 
-  pd_imu_.Publish(imu_msg);
+  pub_imu_.Publish(imu_msg);
 
-  if (enable_rpy_) {
-    Vector3Stamped rpy_msg;
-    rpy_msg.header = imu_msg.header;
-    rpy_msg.vector.z = data.ypr.yaw * M_PI / 180.0;
-    rpy_msg.vector.y = data.ypr.pitch * M_PI / 180.0;
-    rpy_msg.vector.x = data.ypr.roll * M_PI / 180.0;
-    pd_rpy_.Publish(rpy_msg);
+  if (pub_rpy_) {
+    Vector3Stamped msg;
+    msg.header = imu_msg.header;
+    msg.vector.z = data.ypr.yaw * M_PI / 180.0;
+    msg.vector.y = data.ypr.pitch * M_PI / 180.0;
+    msg.vector.x = data.ypr.roll * M_PI / 180.0;
+    pub_rpy_.Publish(msg);
   }
 
-  if (enable_mag_) {
-    MagneticField mag_msg;
-    mag_msg.header = imu_msg.header;
-    mag_msg.magnetic_field = RosVecFromVnVec(data.magnetic);
-    pd_mag_.Publish(mag_msg);
+  if (pub_mag_) {
+    MagneticField msg;
+    msg.header = imu_msg.header;
+    if (compensated_) {
+      msg.magnetic_field = RosVecFromVnVec(data.magnetic);
+    } else {
+      msg.magnetic_field = RosVecFromVnVec(data.magneticUncompensated);
+    }
+    pub_mag_.Publish(msg);
   }
 
-  if (enable_pres_) {
-    FluidPressure pres_msg;
-    pres_msg.header = imu_msg.header;
-    pres_msg.fluid_pressure = data.pressure;
-    pd_pres_.Publish(pres_msg);
+  if (pub_pres_) {
+    FluidPressure msg;
+    msg.header = imu_msg.header;
+    msg.fluid_pressure = data.pressure;
+    pub_pres_.Publish(msg);
   }
 
-  if (enable_temp_) {
-    Temperature temp_msg;
-    temp_msg.header = imu_msg.header;
-    temp_msg.temperature = data.temperature;
-    pd_temp_.Publish(temp_msg);
+  if (pub_temp_) {
+    Temperature msg;
+    msg.header = imu_msg.header;
+    msg.temperature = data.temperature;
+    pub_temp_.Publish(msg);
   }
 
   sync_info_.Update(data.syncInCnt, imu_msg.header.stamp);
-
   updater_.update();
 }
 

@@ -24,30 +24,26 @@
 namespace imu_vn_100 {
 
 namespace du = diagnostic_updater;
-using TopicDiagnosticPtr = boost::shared_ptr<du::TopicDiagnostic>;
 
-// NOTE: there is a DiagnosedPublisher inside diagnostic_updater
-// but it does not have a default constructor thus we use this simple one
-// instead, which has the same functionality
 struct DiagnosedPublisher {
-  ros::Publisher pub;
-  TopicDiagnosticPtr diag;
-
-  template <typename MessageT>
-  void Create(ros::NodeHandle& pnh, const std::string& topic,
-              du::Updater& updater, double& rate) {
-    pub = pnh.advertise<MessageT>(topic, 1);
-    du::FrequencyStatusParam freq_param(&rate, &rate, 0.01, 10);
-    du::TimeStampStatusParam time_param(0, 0.5 / rate);
-    diag = boost::make_shared<du::TopicDiagnostic>(topic, updater, freq_param,
-                                                   time_param);
+  template <typename T>
+  void Advertise(ros::NodeHandle& nh, const std::string& topic,
+                 du::Updater& updater, double& rate) {
+    pub = nh.advertise<T>(topic, 1);
+    diag.reset(new du::TopicDiagnostic(topic, updater, {&rate, &rate, 0.01, 10},
+                                       {0, 0.5 / rate}));
   }
 
-  template <typename MessageT>
-  void Publish(const MessageT& message) {
+  template <typename T>
+  void Publish(const T& message) {
     diag->tick(message.header.stamp);
     pub.publish(message);
   }
+
+  operator bool() const { return diag != nullptr; }
+
+  ros::Publisher pub;
+  boost::shared_ptr<du::TopicDiagnostic> diag;
 };
 
 static constexpr int kBaseImuRate = 800;
@@ -104,18 +100,13 @@ class ImuVn100 {
   double imu_rate_double_ = kDefaultImuRate;
   std::string frame_id_;
 
-  ros::Time ros_time_last_;    ///< previous time stamp
-  ros::Time ros_time_zero_;    ///< ros time of first data
+  ros::Time ros_time_last_;       ///< previous time stamp
+  ros::Time ros_time_zero_;       ///< ros time of first data
   uint64_t device_time_zero_{0};  ///< device time of first data, ns
-
-  bool enable_mag_ = true;
-  bool enable_pres_ = true;
-  bool enable_temp_ = true;
-  bool enable_rpy_ = false;
 
   bool binary_output_ = true;
   int binary_async_mode_ = BINARY_ASYNC_MODE_SERIAL_2;
-  bool imu_compensated_ = false;
+  bool compensated_ = false;
 
   bool vpe_enable_ = true;
   int vpe_heading_mode_ = 1;
@@ -132,9 +123,8 @@ class ImuVn100 {
   SyncInfo sync_info_;
 
   ros::Publisher pub_dt_;
-
   du::Updater updater_;
-  DiagnosedPublisher pd_imu_, pd_mag_, pd_pres_, pd_temp_, pd_rpy_;
+  DiagnosedPublisher pub_imu_, pub_mag_, pub_pres_, pub_temp_, pub_rpy_;
 };
 
 }  // namespace imu_vn_100
