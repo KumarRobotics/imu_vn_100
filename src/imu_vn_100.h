@@ -122,7 +122,8 @@ class ImuVn100 {
 
   SyncInfo sync_info_;
 
-  ros::Publisher pub_dt_;
+  ros::Publisher pub_dt_;    ///< publish time between curr and last
+  ros::Publisher pub_dnow_;  ///< publish time between curr and now
   du::Updater updater_;
   DiagnosedPublisher pub_imu_, pub_mag_, pub_pres_, pub_temp_, pub_rpy_;
 };

@@ -22,6 +22,7 @@
 #include <sensor_msgs/MagneticField.h>
 #include <sensor_msgs/Temperature.h>
 #include <std_msgs/Float64.h>
+#include <std_msgs/Int64.h>
 
 namespace imu_vn_100 {
 
@@ -185,6 +186,7 @@ void ImuVn100::CreatePublishers() {
   imu_rate_double_ = static_cast<double>(imu_rate_);
 
   pub_dt_ = pnh_.advertise<std_msgs::Float64>("dt", 1);
+  pub_dnow_ = pnh_.advertise<std_msgs::Int64>("dnow", 1);
 
   pub_imu_.Advertise<Imu>(pnh_, "imu", updater_, imu_rate_double_);
   ROS_INFO("Publish imu to %s", pub_imu_.pub.getTopic().c_str());
@@ -421,6 +423,7 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
   // Handle timestamp
   if (device_time_zero_ == 0) {
     ros_time_zero_ = ros::Time::now();
+    ros_time_last_ = ros_time_zero_;
     device_time_zero_ = data.timeStartup;
     ROS_INFO_STREAM("Set device time zero to " << device_time_zero_);
     ROS_INFO_STREAM("Set ros time zero to " << ros_time_zero_.toSec());
@@ -429,6 +432,7 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
   ros::Duration dt;
   dt.fromNSec(data.timeStartup - device_time_zero_);
   const ros::Time stamp = ros_time_zero_ + dt;
+  const ros::Duration dnow = ros::Time::now() - stamp;
 
   if (dt.toNSec() < 0) {
     // This should never happen, but we check for it anyway
@@ -437,10 +441,15 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
                            << ", zero: " << device_time_zero_);
   }
 
-  if (ros_time_last_ != ros::Time()) {
-    std_msgs::Float64 dt_msg;
-    dt_msg.data = (stamp - ros_time_last_).toSec();
-    pub_dt_.publish(dt_msg);
+  {
+    std_msgs::Float64 msg;
+    msg.data = (stamp - ros_time_last_).toSec();
+    pub_dt_.publish(msg);
+  }
+  {
+    std_msgs::Int64 msg;
+    msg.data = dnow.toNSec();
+    pub_dnow_.publish(msg);
   }
 
   ros_time_last_ = stamp;
