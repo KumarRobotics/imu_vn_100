@@ -126,7 +126,7 @@ class ImuVn100 {
   ros::Publisher pub_dt_;    ///< publish time between curr and last
   ros::Publisher pub_dnow_;  ///< publish deviate from realtime
   du::Updater updater_;
-  DiagnosedPublisher pub_imu_, pub_mag_, pub_pres_, pub_temp_, pub_ypr_;
+  DiagnosedPublisher pub_imu_, pub_mag_, pub_pres_, pub_temp_;
 };
 
 }  // namespace imu_vn_100

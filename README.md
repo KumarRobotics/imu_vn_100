@@ -45,13 +45,10 @@ The baud rate of the serial port. The available baud rates can be checked on the
 The rate of the IMU data.
 
 ```
-enable_magn  (bool, default: true)
-enable_press (bool, default: true)
-enable_temp  (bool, default: true)
-enable_rpy  (bool, default: false)
+enable_mag_pres  (bool, default: true)
 ```
 
-Enable other possible messages that the driver is available to send. Note that the frequency of the data for each of these messages will be the same with the IMU data, if the topic is enabled.
+Calibrated magnetic (compensated), temperature, and pressure measurements.
 
 `sync_rate` (`int`, `20`)
 
@@ -68,9 +65,13 @@ Set serial port for binary messages to one of:
 * `1` - Serial port 1
 * `2` - Serial port 2
 
-`imu_compensated` (`boolean`, `default: true`)
+`compensated` (`boolean`, `default: true`)
 
-Use *compensated* IMU measurements (i.e. angular velocity, linear acceleration, magnetic field).
+Use *compensated* IMU measurements (i.e. angular velocity, linear acceleration).
+
+`time_alpha` (`double`, `default: 0`)
+
+Used when computing time stamp. `t1 = a * dt_ros + (1 - a) * dt_dev + t0
 
 `vpe_enable` (`boolean`, `default: true`)
 
@@ -102,11 +103,11 @@ Set VPE tuning mode to one of:
 
 `imu/imu` (`sensor_msgs/Imu`)
 
-If `imu_compensated` is `false`, the default, then the message contains the *uncompensated* (for the definition of UNCOMPENSATED, please refer to the [user manual](http://www.vectornav.com/docs/default-source/documentation/vn-100-documentation/UM001.pdf?sfvrsn=10)) angular velocity and linear acceleration. Otherwise both are *compensated*.
+If `compensated` is `false`, the default, then the message contains the *uncompensated* (for the definition of UNCOMPENSATED, please refer to the [user manual](http://www.vectornav.com/docs/default-source/documentation/vn-100-documentation/UM001.pdf?sfvrsn=10)) angular velocity and linear acceleration. Otherwise both are *compensated*.
 
 `imu/magnetic_field` (`sensor_msgs/MagneticField`)
 
-Magnetic field. If `imu_compensated` is `false` then it is *uncompensated* otherwise it is *compensated*.
+Magnetic field. Always *compensated*.
 
 `imu/pressure` (`sensor_msgs/FluidPressure`)
 
@@ -116,16 +117,12 @@ Pressure.
 
 Temperature in degree Celsius
 
-`imu/rpy` (`geometry_msgs/Vector3Stamped`)
-
-Estimated roll (`x`), pitch (`y`) and yaw (`z`) angles in radians given as a 3,2,1 Euler angle rotation sequence describing the orientation of the sensor with respect to the inertial North East Down (NED) frame.
-
 **Node**
 
 With the provided launch file, do
 
 ```
-roslaunch imu_vn_100 vn_100_cont.launch
+roslaunch imu_vn_100 imu.launch
 ```
 
 ## FAQ

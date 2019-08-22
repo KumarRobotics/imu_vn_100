@@ -204,11 +204,6 @@ void ImuVn100::CreatePublishers() {
                                      imu_rate_double_);
     ROS_INFO("Publish temperature to %s", pub_temp_.pub.getTopic().c_str());
   }
-
-  if (pnh_.param("enable_ypr", false)) {
-    pub_ypr_.Advertise<Vector3Stamped>(pnh_, "ypr", updater_, imu_rate_double_);
-    ROS_INFO("Publish rpy to %s", pub_ypr_.pub.getTopic().c_str());
-  }
 }
 
 void ImuVn100::Initialize() {
@@ -343,10 +338,6 @@ void ImuVn100::Stream(bool async) {
       uint16_t grp1 = BG1_QTN | BG1_SYNC_IN_CNT | BG1_TIME_STARTUP;
       std::vector<std::string> sgrp1 = {"BG1_QTN", "BG1_SYNC_IN_CNT",
                                         "BG1_TIME_STARTUP"};
-      if (pub_ypr_) {
-        grp1 |= BG1_YPR;
-        sgrp1.push_back("BG1_YPR");
-      }
 
       if (compensated_) {
         grp1 |= BG1_ACCEL | BG1_ANGULAR_RATE;
@@ -462,15 +453,6 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
   }
 
   pub_imu_.Publish(imu_msg);
-
-  if (pub_ypr_) {
-    Vector3Stamped msg;
-    msg.header = imu_msg.header;
-    msg.vector.z = data.ypr.yaw * M_PI / 180.0;
-    msg.vector.y = data.ypr.pitch * M_PI / 180.0;
-    msg.vector.x = data.ypr.roll * M_PI / 180.0;
-    pub_ypr_.Publish(msg);
-  }
 
   if (pub_mag_) {
     {

@@ -27,7 +27,6 @@
 
     <!-- Ros Topic settings -->
     <arg name="enable_mag_pres" default="true"/>
-    <arg name="enable_ypr" default="false"/>
 
     <node pkg="imu_vn_100" name="$(arg imu)" type="imu_vn_100" output="$(arg output)">
         <param name="port" type="string" value="$(arg port)"/>
@@ -40,7 +39,6 @@
         <param name="time_alpha" type="double" value="$(arg time_alpha)"/>
 
         <param name="enable_mag_pres" type="bool" value="$(arg enable_mag_pres)"/>
-        <param name="enable_ypr" type="bool" value="$(arg enable_ypr)"/>
 
         <param name="sync_rate" type="int" value="$(arg sync_rate)"/>
         <param name="sync_pulse_width_us" type="int" value="$(arg sync_pulse_width_us)"/>
