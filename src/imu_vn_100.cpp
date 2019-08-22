@@ -328,16 +328,18 @@ void ImuVn100::Stream(bool async) {
 
     if (binary_output_) {
       // Set the binary output data type and data rate
-      uint16_t grp1 = BG1_QTN | BG1_SYNC_IN_CNT;
-      std::list<std::string> sgrp1 = {"BG1_QTN", "BG1_SYNC_IN_CNT"};
+      // Add BG1_TIME_STARTUP to have more accurate time stamp
+      uint16_t grp1 = BG1_QTN | BG1_SYNC_IN_CNT | BG1_TIME_STARTUP;
+      std::vector<std::string> sgrp1 = {"BG1_QTN", "BG1_SYNC_IN_CNT",
+                                        "BG1_TIME_STARTUP"};
       if (enable_rpy_) {
         grp1 |= BG1_YPR;
         sgrp1.push_back("BG1_YPR");
       }
       uint16_t grp3 = BG3_NONE;
-      std::list<std::string> sgrp3;
+      std::vector<std::string> sgrp3;
       uint16_t grp5 = BG5_NONE;
-      std::list<std::string> sgrp5;
+      std::vector<std::string> sgrp5;
       if (imu_compensated_) {
         grp1 |= BG1_ACCEL | BG1_ANGULAR_RATE;
         sgrp1.push_back("BG1_ACCEL");
@@ -419,18 +421,34 @@ void ImuVn100::Disconnect() {
 }
 
 void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
-  Imu imu_msg;
-  imu_msg.header.stamp = ros::Time::now();
-  imu_msg.header.frame_id = frame_id_;
+  // Handle timestamp
+  if (device_time_zero_ == 0) {
+    ros_time_zero_ = ros::Time::now();
+    device_time_zero_ = data.timeStartup;
+    ROS_INFO_STREAM("Set device time zero to " << device_time_zero_);
+  }
 
-  if (last_time_ != ros::Time()) {
-    const auto dt = imu_msg.header.stamp - last_time_;
+  ros::Duration dt;
+  dt.fromNSec(data.timeStartup - device_time_zero_);
+  const ros::Time stamp = ros_time_zero_ + dt;
+
+  if (dt.toSec() < 0) {
+    // This should never happen, but we check for it anyway
+    ROS_WARN_STREAM("dt: " << dt.toSec() << ", startup: " << data.timeStartup
+                           << ", zero: " << device_time_zero_);
+  }
+
+  if (ros_time_last_ != ros::Time()) {
     std_msgs::Float64 dt_msg;
-    dt_msg.data = dt.toSec();
+    dt_msg.data = (stamp - ros_time_last_).toSec();
     pub_dt_.publish(dt_msg);
   }
 
-  last_time_ = imu_msg.header.stamp;
+  ros_time_last_ = stamp;
+
+  Imu imu_msg;
+  imu_msg.header.stamp = stamp;
+  imu_msg.header.frame_id = frame_id_;
 
   if (imu_compensated_) {
     imu_msg.linear_acceleration = RosVecFromVnVec(data.acceleration);

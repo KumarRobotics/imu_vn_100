@@ -104,7 +104,9 @@ class ImuVn100 {
   double imu_rate_double_ = kDefaultImuRate;
   std::string frame_id_;
 
-  ros::Time last_time_;
+  ros::Time ros_time_last_;    ///< previous time stamp
+  ros::Time ros_time_zero_;    ///< ros time of first data
+  uint64_t device_time_zero_{0};  ///< device time of first data, ns
 
   bool enable_mag_ = true;
   bool enable_pres_ = true;
@@ -113,7 +115,6 @@ class ImuVn100 {
 
   bool binary_output_ = true;
   int binary_async_mode_ = BINARY_ASYNC_MODE_SERIAL_2;
-
   bool imu_compensated_ = false;
 
   bool vpe_enable_ = true;
