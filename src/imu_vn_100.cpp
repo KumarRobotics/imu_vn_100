@@ -22,7 +22,6 @@
 #include <sensor_msgs/MagneticField.h>
 #include <sensor_msgs/Temperature.h>
 #include <std_msgs/Float64.h>
-#include <std_msgs/Int64.h>
 
 namespace imu_vn_100 {
 
@@ -140,6 +139,9 @@ void ImuVn100::LoadParameters() {
              BINARY_ASYNC_MODE_SERIAL_2);
 
   pnh_.param("compensated", compensated_, false);
+  pnh_.param("time_alpha", time_alpha_, 0.0);
+  ROS_INFO("time_alpha: %f", time_alpha_);
+  time_alpha_ = std::max(0.0, std::min(time_alpha_, 1.0));
 
   pnh_.param("vpe/enable", vpe_enable_, true);
   pnh_.param("vpe/heading_mode", vpe_heading_mode_, 1);
@@ -186,7 +188,7 @@ void ImuVn100::CreatePublishers() {
   imu_rate_double_ = static_cast<double>(imu_rate_);
 
   pub_dt_ = pnh_.advertise<std_msgs::Float64>("dt", 1);
-  pub_dnow_ = pnh_.advertise<std_msgs::Int64>("dnow", 1);
+  pub_dnow_ = pnh_.advertise<std_msgs::Float64>("dnow", 1);
 
   pub_imu_.Advertise<Imu>(pnh_, "imu", updater_, imu_rate_double_);
   ROS_INFO("Publish imu to %s", pub_imu_.pub.getTopic().c_str());
@@ -396,38 +398,48 @@ void ImuVn100::Disconnect() {
 
 void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
   // Handle timestamp
-  if (device_time_zero_ == 0) {
-    ros_time_zero_ = ros::Time::now();
-    ros_time_last_ = ros_time_zero_;
-    device_time_zero_ = data.timeStartup;
-    ROS_INFO_STREAM("Set device time zero to " << device_time_zero_);
-    ROS_INFO_STREAM("Set ros time zero to " << ros_time_zero_.toSec());
+  const auto ros_time_now = ros::Time::now();
+  if (dev_time_last_ == 0) {
+    ros_time_last_ = ros_time_now;
+    stamp_last_ = ros_time_last_;
+    dev_time_last_ = data.timeStartup;
+    //    ROS_INFO_STREAM("Set device time zero to " << dev_time_last_);
+    //    ROS_INFO_STREAM("Set ros time zero to " << ros_time_zero_.toSec());
   }
 
-  ros::Duration dt;
-  dt.fromNSec(data.timeStartup - device_time_zero_);
-  const ros::Time stamp = ros_time_zero_ + dt;
-  const ros::Duration dnow = ros::Time::now() - stamp;
+  // delta time from device
+  const int64_t dt_dev = data.timeStartup - dev_time_last_;
+  // delta time from ros
+  const int64_t dt_ros = (ros_time_now - ros_time_last_).toNSec();
+  // filtered delta time
+  const int64_t dt_filtered = dt_ros * time_alpha_ + dt_dev * (1 - time_alpha_);
+  ROS_DEBUG_STREAM("dt_dev: " << dt_dev << ", dt_ros: " << dt_ros
+                              << ", dt_filtered: " << dt_filtered);
 
-  if (dt.toNSec() < 0) {
+  ros::Duration dt;
+  dt.fromNSec(dt_filtered);
+  const ros::Time stamp = stamp_last_ + dt;
+
+  if (dt_dev < 0) {
     // This should never happen, but we check for it anyway
-    ROS_WARN_STREAM("dt: " << dt.toNSec()
-                           << " ns, startup: " << data.timeStartup
-                           << ", zero: " << device_time_zero_);
+    ROS_WARN_STREAM("dt: " << dt_dev << " ns, startup: " << data.timeStartup
+                           << ", zero: " << dev_time_last_);
   }
 
   {
     std_msgs::Float64 msg;
-    msg.data = (stamp - ros_time_last_).toSec();
+    msg.data = dt.toSec();
     pub_dt_.publish(msg);
   }
   {
-    std_msgs::Int64 msg;
-    msg.data = dnow.toNSec();
+    std_msgs::Float64 msg;
+    msg.data = (ros_time_now - stamp).toSec();
     pub_dnow_.publish(msg);
   }
 
-  ros_time_last_ = stamp;
+  ros_time_last_ = ros_time_now;
+  dev_time_last_ = data.timeStartup;
+  stamp_last_ = stamp;
 
   // Fill in data
   Imu imu_msg;
@@ -482,7 +494,7 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
   }
 
   sync_info_.Update(data.syncInCnt, imu_msg.header.stamp);
-  updater_.update();
+  //  updater_.update();
 }
 
 void VnEnsure(const VnErrorCode& error_code) {

@@ -36,7 +36,7 @@ struct DiagnosedPublisher {
 
   template <typename T>
   void Publish(const T& message) {
-    diag->tick(message.header.stamp);
+    //    diag->tick(message.header.stamp);
     pub.publish(message);
   }
 
@@ -100,10 +100,10 @@ class ImuVn100 {
   double imu_rate_double_ = kDefaultImuRate;
   std::string frame_id_;
 
-  ros::Time ros_time_last_;       ///< previous time stamp
-  ros::Time ros_time_zero_;       ///< ros time of first data
-  uint64_t device_time_zero_{0};  ///< device time of first data, ns
-  double time_alpha_{0.0};        ///< t1 = dnow * a + ddev * (1-a) + t0
+  ros::Time stamp_last_;       ///< last used time, t0
+  ros::Time ros_time_last_;    ///< last ros time, t_ros
+  uint64_t dev_time_last_{0};  ///< last dev time, ns, t_dev
+  double time_alpha_{0.0};     ///< t1 = dt_ros * a + dt_dev * (1-a) + t0
 
   bool binary_output_ = true;
   int binary_async_mode_ = BINARY_ASYNC_MODE_SERIAL_2;
@@ -124,7 +124,7 @@ class ImuVn100 {
   SyncInfo sync_info_;
 
   ros::Publisher pub_dt_;    ///< publish time between curr and last
-  ros::Publisher pub_dnow_;  ///< publish time between curr and now
+  ros::Publisher pub_dnow_;  ///< publish deviate from realtime
   du::Updater updater_;
   DiagnosedPublisher pub_imu_, pub_mag_, pub_pres_, pub_temp_, pub_ypr_;
 };

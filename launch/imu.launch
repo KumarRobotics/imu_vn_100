@@ -17,6 +17,7 @@
     <arg name="binary_async_mode" default="2"/>
 
     <arg name="compensated" default="false"/>
+    <arg name="time_alpha" default="0.0"/>
 
     <!-- VPE settings -->
     <arg name="vpe_enable" default="true"/>
@@ -36,6 +37,7 @@
         <param name="binary_output" type="bool" value="$(arg binary_output)"/>
         <param name="binary_async_mode" type="int" value="$(arg binary_async_mode)"/>
         <param name="compensated" type="bool" value="$(arg compensated)"/>
+        <param name="time_alpha" type="double" value="$(arg time_alpha)"/>
 
         <param name="enable_mag_pres" type="bool" value="$(arg enable_mag_pres)"/>
         <param name="enable_ypr" type="bool" value="$(arg enable_ypr)"/>
