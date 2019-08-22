@@ -191,25 +191,21 @@ void ImuVn100::CreatePublishers() {
   pub_imu_.Advertise<Imu>(pnh_, "imu", updater_, imu_rate_double_);
   ROS_INFO("Publish imu to %s", pub_imu_.pub.getTopic().c_str());
 
-  if (pnh_.param("enable_mag", true)) {
+  if (pnh_.param("enable_mag_pres", true)) {
     pub_mag_.Advertise<MagneticField>(pnh_, "magnetic_field", updater_,
                                       imu_rate_double_);
     ROS_INFO("Publish magnetic filed to %s", pub_mag_.pub.getTopic().c_str());
-  }
-
-  if (pnh_.param("enable_pres", true)) {
     pub_pres_.Advertise<FluidPressure>(pnh_, "fluid_pressure", updater_,
                                        imu_rate_double_);
     ROS_INFO("Publish pressure to %s", pub_pres_.pub.getTopic().c_str());
-  }
-  if (pnh_.param("enable_temp", true)) {
     pub_temp_.Advertise<Temperature>(pnh_, "temperature", updater_,
                                      imu_rate_double_);
     ROS_INFO("Publish temperature to %s", pub_temp_.pub.getTopic().c_str());
   }
-  if (pnh_.param("enable_rpy", false)) {
-    pub_rpy_.Advertise<Vector3Stamped>(pnh_, "rpy", updater_, imu_rate_double_);
-    ROS_INFO("Publish rpy to %s", pub_rpy_.pub.getTopic().c_str());
+
+  if (pnh_.param("enable_ypr", false)) {
+    pub_ypr_.Advertise<Vector3Stamped>(pnh_, "ypr", updater_, imu_rate_double_);
+    ROS_INFO("Publish rpy to %s", pub_ypr_.pub.getTopic().c_str());
   }
 }
 
@@ -280,10 +276,10 @@ void ImuVn100::Initialize() {
   uint8_t vpe_tuning_mode;
   VnEnsure(vn100_getVpeControl(&imu_, &vpe_enable, &vpe_heading_mode,
                                &vpe_filtering_mode, &vpe_tuning_mode));
-  ROS_INFO("Default VPE enable: %hhu", vpe_enable);
-  ROS_INFO("Default VPE heading mode: %hhu", vpe_heading_mode);
-  ROS_INFO("Default VPE filtering mode: %hhu", vpe_filtering_mode);
-  ROS_INFO("Default VPE tuning mode: %hhu", vpe_tuning_mode);
+  ROS_INFO(
+      "Default VPE enable: %hhu, heading mode: %hhu, filtering mode: %hhu, "
+      "tuning mode: %hhu",
+      vpe_enable, vpe_heading_mode, vpe_filtering_mode, vpe_tuning_mode);
 
   if (vpe_enable != vpe_enable_ || vpe_heading_mode != vpe_heading_mode_ ||
       vpe_filtering_mode != vpe_filtering_mode_ ||
@@ -292,10 +288,10 @@ void ImuVn100::Initialize() {
     vpe_heading_mode = vpe_heading_mode_;
     vpe_filtering_mode = vpe_filtering_mode_;
     vpe_tuning_mode = vpe_tuning_mode_;
-    ROS_INFO("Setting VPE enable: %hhu", vpe_enable);
-    ROS_INFO("Setting VPE heading mode: %hhu", vpe_heading_mode);
-    ROS_INFO("Setting VPE filtering mode: %hhu", vpe_filtering_mode);
-    ROS_INFO("Setting VPE tuning mode: %hhu", vpe_tuning_mode);
+    ROS_INFO(
+        "Setting VPE enable: %hhu, heading mode: %hhu, filtering mode: %hhu, "
+        "tuning mode: %hhu",
+        vpe_enable, vpe_heading_mode, vpe_filtering_mode, vpe_tuning_mode);
     VnEnsure(vn100_setVpeControl(&imu_, vpe_enable, vpe_heading_mode,
                                  vpe_filtering_mode, vpe_tuning_mode, true));
   }
@@ -345,51 +341,30 @@ void ImuVn100::Stream(bool async) {
       uint16_t grp1 = BG1_QTN | BG1_SYNC_IN_CNT | BG1_TIME_STARTUP;
       std::vector<std::string> sgrp1 = {"BG1_QTN", "BG1_SYNC_IN_CNT",
                                         "BG1_TIME_STARTUP"};
-      if (pub_imu_) {
+      if (pub_ypr_) {
         grp1 |= BG1_YPR;
         sgrp1.push_back("BG1_YPR");
       }
-
-      uint16_t grp3 = BG3_NONE;
-      std::vector<std::string> sgrp3;
-
-      uint16_t grp5 = BG5_NONE;
-      std::vector<std::string> sgrp5;
 
       if (compensated_) {
         grp1 |= BG1_ACCEL | BG1_ANGULAR_RATE;
         sgrp1.push_back("BG1_ACCEL");
         sgrp1.push_back("BG1_ANGULAR_RATE");
-        if (pub_mag_) {
-          grp3 |= BG3_MAG;
-          sgrp3.push_back("BG3_MAG");
-        }
       } else {
         grp1 |= BG1_IMU;
         sgrp1.push_back("BG1_IMU");
-        if (pub_mag_) {
-          grp3 |= BG3_UNCOMP_MAG;
-          sgrp3.push_back("BG3_UNCOMP_MAG");
-        }
       }
 
-      if (pub_temp_) {
-        grp3 |= BG3_TEMP;
-        sgrp3.push_back("BG3_TEMP");
-      }
-
-      if (pub_pres_) {
-        grp3 |= BG3_PRES;
-        sgrp3.push_back("BG3_PRES");
+      if (pub_mag_) {
+        grp1 |= BG1_MAG_PRES;
+        sgrp1.push_back("BG1_MAG_PRES");
       }
 
       ROS_INFO("Streaming #1: %s", VectorToString(sgrp1).c_str());
-      ROS_INFO("Streaming #3: %s", VectorToString(sgrp3).c_str());
-      ROS_INFO("Streaming #5: %s", VectorToString(sgrp5).c_str());
 
-      VnEnsure(vn100_setBinaryOutput1Configuration(&imu_, binary_async_mode_,
-                                                   kBaseImuRate / imu_rate_,
-                                                   grp1, grp3, grp5, true));
+      VnEnsure(vn100_setBinaryOutput1Configuration(
+          &imu_, binary_async_mode_, kBaseImuRate / imu_rate_, grp1, BG3_NONE,
+          BG5_NONE, true));
     } else {
       // Set the ASCII output data type and data rate
       // ROS_INFO("Configure the output data type and frequency (id: 6 & 7)");
@@ -476,38 +451,34 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
 
   pub_imu_.Publish(imu_msg);
 
-  if (pub_rpy_) {
+  if (pub_ypr_) {
     Vector3Stamped msg;
     msg.header = imu_msg.header;
     msg.vector.z = data.ypr.yaw * M_PI / 180.0;
     msg.vector.y = data.ypr.pitch * M_PI / 180.0;
     msg.vector.x = data.ypr.roll * M_PI / 180.0;
-    pub_rpy_.Publish(msg);
+    pub_ypr_.Publish(msg);
   }
 
   if (pub_mag_) {
-    MagneticField msg;
-    msg.header = imu_msg.header;
-    if (compensated_) {
-      msg.magnetic_field = RosVecFromVnVec(data.magnetic);
-    } else {
-      msg.magnetic_field = RosVecFromVnVec(data.magneticUncompensated);
+    {
+      MagneticField msg;
+      msg.header = imu_msg.header;
+      msg.magnetic_field = RosVecFromVnVec(data.magnetic);  // compensated
+      pub_mag_.Publish(msg);
     }
-    pub_mag_.Publish(msg);
-  }
-
-  if (pub_pres_) {
-    FluidPressure msg;
-    msg.header = imu_msg.header;
-    msg.fluid_pressure = data.pressure;
-    pub_pres_.Publish(msg);
-  }
-
-  if (pub_temp_) {
-    Temperature msg;
-    msg.header = imu_msg.header;
-    msg.temperature = data.temperature;
-    pub_temp_.Publish(msg);
+    {
+      FluidPressure msg;
+      msg.header = imu_msg.header;
+      msg.fluid_pressure = data.pressure;
+      pub_pres_.Publish(msg);
+    }
+    {
+      Temperature msg;
+      msg.header = imu_msg.header;
+      msg.temperature = data.temperature;
+      pub_temp_.Publish(msg);
+    }
   }
 
   sync_info_.Update(data.syncInCnt, imu_msg.header.stamp);

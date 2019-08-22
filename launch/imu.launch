@@ -9,7 +9,7 @@
 
     <!-- Sync out settings -->
     <!-- to disable this just set it to < 0 -->
-    <arg name="sync_rate" default="20"/>
+    <arg name="sync_rate" default="0"/>
     <arg name="sync_pulse_width_us" default="1000"/>
 
     <!-- Binary settings -->
@@ -25,10 +25,8 @@
     <arg name="vpe_tuning_mode" default="1"/>
 
     <!-- Ros Topic settings -->
-    <arg name="enable_mag" default="true"/>
-    <arg name="enable_pres" default="true"/>
-    <arg name="enable_temp" default="true"/>
-    <arg name="enable_rpy" default="false"/>
+    <arg name="enable_mag_pres" default="true"/>
+    <arg name="enable_ypr" default="false"/>
 
     <node pkg="imu_vn_100" name="$(arg imu)" type="imu_vn_100" output="$(arg output)">
         <param name="port" type="string" value="$(arg port)"/>
@@ -39,10 +37,8 @@
         <param name="binary_async_mode" type="int" value="$(arg binary_async_mode)"/>
         <param name="compensated" type="bool" value="$(arg compensated)"/>
 
-        <param name="enable_mag" type="bool" value="$(arg enable_mag)"/>
-        <param name="enable_pres" type="bool" value="$(arg enable_pres)"/>
-        <param name="enable_temp" type="bool" value="$(arg enable_temp)"/>
-        <param name="enable_rpy" type="bool" value="$(arg enable_rpy)"/>
+        <param name="enable_mag_pres" type="bool" value="$(arg enable_mag_pres)"/>
+        <param name="enable_ypr" type="bool" value="$(arg enable_ypr)"/>
 
         <param name="sync_rate" type="int" value="$(arg sync_rate)"/>
         <param name="sync_pulse_width_us" type="int" value="$(arg sync_pulse_width_us)"/>

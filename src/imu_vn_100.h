@@ -31,7 +31,7 @@ struct DiagnosedPublisher {
                  du::Updater& updater, double& rate) {
     pub = nh.advertise<T>(topic, 1);
     diag.reset(new du::TopicDiagnostic(topic, updater, {&rate, &rate, 0.01, 10},
-                                       {0, 0.5 / rate}));
+                                       {-1 / rate, 1 / rate}));
   }
 
   template <typename T>
@@ -103,6 +103,7 @@ class ImuVn100 {
   ros::Time ros_time_last_;       ///< previous time stamp
   ros::Time ros_time_zero_;       ///< ros time of first data
   uint64_t device_time_zero_{0};  ///< device time of first data, ns
+  double time_alpha_{0.0};        ///< t1 = dnow * a + ddev * (1-a) + t0
 
   bool binary_output_ = true;
   int binary_async_mode_ = BINARY_ASYNC_MODE_SERIAL_2;
@@ -125,7 +126,7 @@ class ImuVn100 {
   ros::Publisher pub_dt_;    ///< publish time between curr and last
   ros::Publisher pub_dnow_;  ///< publish time between curr and now
   du::Updater updater_;
-  DiagnosedPublisher pub_imu_, pub_mag_, pub_pres_, pub_temp_, pub_rpy_;
+  DiagnosedPublisher pub_imu_, pub_mag_, pub_pres_, pub_temp_, pub_ypr_;
 };
 
 }  // namespace imu_vn_100
