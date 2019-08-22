@@ -17,6 +17,11 @@
 #include "imu_vn_100.h"
 
 #include <geometry_msgs/Vector3Stamped.h>
+#include <sensor_msgs/FluidPressure.h>
+#include <sensor_msgs/Imu.h>
+#include <sensor_msgs/MagneticField.h>
+#include <sensor_msgs/Temperature.h>
+#include <std_msgs/Float64.h>
 
 namespace imu_vn_100 {
 
@@ -172,9 +177,13 @@ void ImuVn100::LoadParameters() {
   sync_info_.FixSyncRate();
 }
 
-void ImuVn100::CreateDiagnosedPublishers() {
+void ImuVn100::CreatePublishers() {
   imu_rate_double_ = static_cast<double>(imu_rate_);
+
+  pub_dt_ = pnh_.advertise<std_msgs::Float64>("dt", 1);
+
   pd_imu_.Create<Imu>(pnh_, "imu", updater_, imu_rate_double_);
+
   if (enable_mag_) {
     pd_mag_.Create<MagneticField>(pnh_, "magnetic_field", updater_,
                                   imu_rate_double_);
@@ -303,7 +312,7 @@ void ImuVn100::Initialize() {
         vpe_accel_adaptive_filtering_, true));
   }
 
-  CreateDiagnosedPublishers();
+  CreatePublishers();
 
   auto hardware_id = std::string("vn100-") + std::string(model_number_buffer) +
                      std::string(serial_number_buffer);
@@ -403,14 +412,6 @@ void ImuVn100::Stream(bool async) {
   VnEnsure(vn100_resumeAsyncOutputs(&imu_, true));
 }
 
-void ImuVn100::Resume(bool need_reply) {
-  vn100_resumeAsyncOutputs(&imu_, need_reply);
-}
-
-void ImuVn100::Idle(bool need_reply) {
-  vn100_pauseAsyncOutputs(&imu_, need_reply);
-}
-
 void ImuVn100::Disconnect() {
   ROS_INFO("Reset and disconnect from imu");
   vn100_reset(&imu_);
@@ -421,6 +422,15 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
   Imu imu_msg;
   imu_msg.header.stamp = ros::Time::now();
   imu_msg.header.frame_id = frame_id_;
+
+  if (last_time_ != ros::Time()) {
+    const auto dt = imu_msg.header.stamp - last_time_;
+    std_msgs::Float64 dt_msg;
+    dt_msg.data = dt.toSec();
+    pub_dt_.publish(dt_msg);
+  }
+
+  last_time_ = imu_msg.header.stamp;
 
   if (imu_compensated_) {
     imu_msg.linear_acceleration = RosVecFromVnVec(data.acceleration);

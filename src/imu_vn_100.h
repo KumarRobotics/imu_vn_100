@@ -18,10 +18,6 @@
 #include <diagnostic_updater/diagnostic_updater.h>
 #include <diagnostic_updater/publisher.h>
 #include <ros/ros.h>
-#include <sensor_msgs/FluidPressure.h>
-#include <sensor_msgs/Imu.h>
-#include <sensor_msgs/MagneticField.h>
-#include <sensor_msgs/Temperature.h>
 
 #include "vn100.h"
 
@@ -75,15 +71,7 @@ class ImuVn100 {
 
   void PublishData(const VnDeviceCompositeData& data);
 
-  void RequestOnce();
-
-  void Idle(bool need_reply = true);
-
-  void Resume(bool need_reply = true);
-
   void Disconnect();
-
-  void Configure();
 
   struct SyncInfo {
     unsigned count = 0;
@@ -104,7 +92,7 @@ class ImuVn100 {
  private:
   void FixImuRate();
   void LoadParameters();
-  void CreateDiagnosedPublishers();
+  void CreatePublishers();
 
   ros::NodeHandle pnh_;
   Vn100 imu_;
@@ -116,6 +104,8 @@ class ImuVn100 {
   double imu_rate_double_ = kDefaultImuRate;
   std::string frame_id_;
 
+  ros::Time last_time_;
+
   bool enable_mag_ = true;
   bool enable_pres_ = true;
   bool enable_temp_ = true;
@@ -125,8 +115,6 @@ class ImuVn100 {
   int binary_async_mode_ = BINARY_ASYNC_MODE_SERIAL_2;
 
   bool imu_compensated_ = false;
-
-  bool tf_ned_to_enu_ = false;
 
   bool vpe_enable_ = true;
   int vpe_heading_mode_ = 1;
@@ -141,6 +129,8 @@ class ImuVn100 {
   VnVector3 vpe_accel_adaptive_filtering_;
 
   SyncInfo sync_info_;
+
+  ros::Publisher pub_dt_;
 
   du::Updater updater_;
   DiagnosedPublisher pd_imu_, pd_mag_, pd_pres_, pd_temp_, pd_rpy_;
