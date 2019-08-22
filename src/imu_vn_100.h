@@ -13,16 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#pragma once
 
-#ifndef IMU_VN_100_ROS_H_
-#define IMU_VN_100_ROS_H_
-
-#include <ros/ros.h>
 #include <diagnostic_updater/diagnostic_updater.h>
 #include <diagnostic_updater/publisher.h>
+#include <ros/ros.h>
+#include <sensor_msgs/FluidPressure.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/MagneticField.h>
-#include <sensor_msgs/FluidPressure.h>
 #include <sensor_msgs/Temperature.h>
 
 #include "vn100.h"
@@ -56,16 +54,16 @@ struct DiagnosedPublisher {
   }
 };
 
+static constexpr int kBaseImuRate = 800;
+static constexpr int kDefaultImuRate = 100;
+static constexpr int kDefaultSyncOutRate = 20;
+
 /**
  * @brief ImuVn100 The class is a ros wrapper for the Imu class
  * @author Ke Sun
  */
 class ImuVn100 {
  public:
-  static constexpr int kBaseImuRate = 800;
-  static constexpr int kDefaultImuRate = 100;
-  static constexpr int kDefaultSyncOutRate = 20;
-
   explicit ImuVn100(const ros::NodeHandle& pnh);
   ImuVn100(const ImuVn100&) = delete;
   ImuVn100& operator=(const ImuVn100&) = delete;
@@ -104,6 +102,10 @@ class ImuVn100 {
   const SyncInfo sync_info() const { return sync_info_; }
 
  private:
+  void FixImuRate();
+  void LoadParameters();
+  void CreateDiagnosedPublishers();
+
   ros::NodeHandle pnh_;
   Vn100 imu_;
 
@@ -130,6 +132,7 @@ class ImuVn100 {
   int vpe_heading_mode_ = 1;
   int vpe_filtering_mode_ = 1;
   int vpe_tuning_mode_ = 1;
+
   VnVector3 vpe_mag_base_tuning_;
   VnVector3 vpe_mag_adaptive_tuning_;
   VnVector3 vpe_mag_adaptive_filtering_;
@@ -141,16 +144,6 @@ class ImuVn100 {
 
   du::Updater updater_;
   DiagnosedPublisher pd_imu_, pd_mag_, pd_pres_, pd_temp_, pd_rpy_;
-
-  void FixImuRate();
-  void LoadParameters();
-  void CreateDiagnosedPublishers();
 };
 
-// Just don't like type that is ALL CAP
-using VnErrorCode = VN_ERROR_CODE;
-void VnEnsure(const VnErrorCode& error_code);
-
 }  // namespace imu_vn_100
-
-#endif  // IMU_VN_100_ROS_H_
