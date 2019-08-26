@@ -394,8 +394,6 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
     ros_time_last_ = ros_time_now;
     stamp_last_ = ros_time_last_;
     dev_time_last_ = data.timeStartup;
-    //    ROS_INFO_STREAM("Set device time zero to " << dev_time_last_);
-    //    ROS_INFO_STREAM("Set ros time zero to " << ros_time_zero_.toSec());
   }
 
   // delta time from device
@@ -476,7 +474,7 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
   }
 
   sync_info_.Update(data.syncInCnt, imu_msg.header.stamp);
-  //  updater_.update();
+  updater_.update();
 }
 
 void VnEnsure(const VnErrorCode& error_code) {

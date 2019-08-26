@@ -26,9 +26,10 @@
     <arg name="vpe_tuning_mode" default="1"/>
 
     <!-- Ros Topic settings -->
-    <arg name="enable_mag_pres" default="true"/>
+    <arg name="enable_mag" default="true"/>
+    <arg name="enable_mag_pres" default="$(arg enable_mag)"/>
 
-    <node pkg="imu_vn_100" name="$(arg imu)" type="imu_vn_100" output="$(arg output)">
+    <node pkg="imu_vn_100" name="$(arg imu)" type="imu_vn_100_node" output="$(arg output)">
         <param name="port" type="string" value="$(arg port)"/>
         <param name="baudrate" type="int" value="$(arg baudrate)"/>
         <param name="frame_id" type="string" value="$(arg frame_id)"/>
