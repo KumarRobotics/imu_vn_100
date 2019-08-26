@@ -13,48 +13,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#pragma once
 
-#ifndef IMU_VN_100_ROS_H_
-#define IMU_VN_100_ROS_H_
-
-#include <ros/ros.h>
 #include <diagnostic_updater/diagnostic_updater.h>
 #include <diagnostic_updater/publisher.h>
-#include <sensor_msgs/Imu.h>
-#include <sensor_msgs/MagneticField.h>
-#include <sensor_msgs/FluidPressure.h>
-#include <sensor_msgs/Temperature.h>
+#include <ros/ros.h>
 
 #include "vn100.h"
 
 namespace imu_vn_100 {
 
 namespace du = diagnostic_updater;
-using TopicDiagnosticPtr = boost::shared_ptr<du::TopicDiagnostic>;
 
-// NOTE: there is a DiagnosedPublisher inside diagnostic_updater
-// but it does not have a default constructor thus we use this simple one
-// instead, which has the same functionality
 struct DiagnosedPublisher {
-  ros::Publisher pub;
-  TopicDiagnosticPtr diag;
-
-  template <typename MessageT>
-  void Create(ros::NodeHandle& pnh, const std::string& topic,
-              du::Updater& updater, double& rate) {
-    pub = pnh.advertise<MessageT>(topic, 1);
-    du::FrequencyStatusParam freq_param(&rate, &rate, 0.01, 10);
-    du::TimeStampStatusParam time_param(0, 0.5 / rate);
-    diag = boost::make_shared<du::TopicDiagnostic>(topic, updater, freq_param,
-                                                   time_param);
+  template <typename T>
+  void Advertise(ros::NodeHandle& nh, const std::string& topic,
+                 du::Updater& updater, double& rate) {
+    pub = nh.advertise<T>(topic, 1);
+    diag.reset(new du::TopicDiagnostic(topic, updater, {&rate, &rate, 0.01, 10},
+                                       {-1 / rate, 1 / rate}));
   }
 
-  template <typename MessageT>
-  void Publish(const MessageT& message) {
-    diag->tick(message.header.stamp);
+  template <typename T>
+  void Publish(const T& message) {
+    //    diag->tick(message.header.stamp);
     pub.publish(message);
   }
+
+  operator bool() const { return diag != nullptr; }
+
+  ros::Publisher pub;
+  boost::shared_ptr<du::TopicDiagnostic> diag;
 };
+
+static constexpr int kBaseImuRate = 800;
+static constexpr int kDefaultImuRate = 100;
+static constexpr int kDefaultSyncOutRate = 20;
 
 /**
  * @brief ImuVn100 The class is a ros wrapper for the Imu class
@@ -62,10 +56,6 @@ struct DiagnosedPublisher {
  */
 class ImuVn100 {
  public:
-  static constexpr int kBaseImuRate = 800;
-  static constexpr int kDefaultImuRate = 100;
-  static constexpr int kDefaultSyncOutRate = 20;
-
   explicit ImuVn100(const ros::NodeHandle& pnh);
   ImuVn100(const ImuVn100&) = delete;
   ImuVn100& operator=(const ImuVn100&) = delete;
@@ -77,15 +67,7 @@ class ImuVn100 {
 
   void PublishData(const VnDeviceCompositeData& data);
 
-  void RequestOnce();
-
-  void Idle(bool need_reply = true);
-
-  void Resume(bool need_reply = true);
-
   void Disconnect();
-
-  void Configure();
 
   struct SyncInfo {
     unsigned count = 0;
@@ -104,6 +86,10 @@ class ImuVn100 {
   const SyncInfo sync_info() const { return sync_info_; }
 
  private:
+  void FixImuRate();
+  void LoadParameters();
+  void CreatePublishers();
+
   ros::NodeHandle pnh_;
   Vn100 imu_;
 
@@ -114,22 +100,20 @@ class ImuVn100 {
   double imu_rate_double_ = kDefaultImuRate;
   std::string frame_id_;
 
-  bool enable_mag_ = true;
-  bool enable_pres_ = true;
-  bool enable_temp_ = true;
-  bool enable_rpy_ = false;
+  ros::Time stamp_last_;       ///< last used time, t0
+  ros::Time ros_time_last_;    ///< last ros time, t_ros
+  uint64_t dev_time_last_{0};  ///< last dev time, ns, t_dev
+  double time_alpha_{0.0};     ///< t1 = dt_ros * a + dt_dev * (1-a) + t0
 
   bool binary_output_ = true;
   int binary_async_mode_ = BINARY_ASYNC_MODE_SERIAL_2;
-
-  bool imu_compensated_ = false;
-
-  bool tf_ned_to_enu_ = false;
+  bool compensated_ = false;
 
   bool vpe_enable_ = true;
   int vpe_heading_mode_ = 1;
   int vpe_filtering_mode_ = 1;
   int vpe_tuning_mode_ = 1;
+
   VnVector3 vpe_mag_base_tuning_;
   VnVector3 vpe_mag_adaptive_tuning_;
   VnVector3 vpe_mag_adaptive_filtering_;
@@ -139,18 +123,10 @@ class ImuVn100 {
 
   SyncInfo sync_info_;
 
+  ros::Publisher pub_dt_;    ///< publish time between curr and last
+  ros::Publisher pub_dnow_;  ///< publish deviate from realtime
   du::Updater updater_;
-  DiagnosedPublisher pd_imu_, pd_mag_, pd_pres_, pd_temp_, pd_rpy_;
-
-  void FixImuRate();
-  void LoadParameters();
-  void CreateDiagnosedPublishers();
+  DiagnosedPublisher pub_imu_, pub_mag_, pub_pres_, pub_temp_;
 };
 
-// Just don't like type that is ALL CAP
-using VnErrorCode = VN_ERROR_CODE;
-void VnEnsure(const VnErrorCode& error_code);
-
 }  // namespace imu_vn_100
-
-#endif  // IMU_VN_100_ROS_H_
