@@ -332,6 +332,7 @@ void ImuVn100::Stream(bool async) {
         grp1 |= BG1_YPR;
         sgrp1.push_back("BG1_YPR");
       }
+      ROS_INFO("test group 1 %d",grp1);
       uint16_t grp2 = BG2_NONE;
       if (sync_info_.SyncEnabled())
 		{
@@ -440,7 +441,7 @@ void ImuVn100::Idle(bool need_reply) {
 
 void ImuVn100::Disconnect() {
   // TODO: why reset the device?
-  vn100_reset(&imu_);
+  //vn100_reset(&imu_);
   vn100_disconnect(&imu_);
 }
 
@@ -448,7 +449,7 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
   sensor_msgs::Imu imu_msg;
   imu_msg.header.stamp = ros::Time::now();
   imu_msg.header.frame_id = frame_id_;
-
+   ROS_INFO("\n syncount count %d",data.syncOutCnt);
   if (imu_compensated_) {
     RosVector3FromVnVector3(imu_msg.linear_acceleration, data.acceleration);
     RosVector3FromVnVector3(imu_msg.angular_velocity, data.angularRate);

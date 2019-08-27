@@ -63,7 +63,6 @@
 extern "C" {
 #endif
 
-#include <std.h>;
 /**
  * @defgroup ASYNC_OUTPUTS Asynchronous Output Types
  *
