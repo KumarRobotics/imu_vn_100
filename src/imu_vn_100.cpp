@@ -119,11 +119,6 @@ void ImuVn100::LoadParameters() {
   pnh_.param("binary_output", binary_output_, true);
   pnh_.param("binary_async_mode", binary_async_mode_,
              BINARY_ASYNC_MODE_SERIAL_2);
-
-  pnh_.param("imu_compensated", imu_compensated_, false);
-
-  pnh_.param("vpe/enable", vpe_enable_, true);
-
   pnh_.param("vpe/heading_mode", vpe_heading_mode_, 1);
   pnh_.param("vpe/filtering_mode", vpe_filtering_mode_, 1);
   pnh_.param("vpe/tuning_mode", vpe_tuning_mode_, 1);
@@ -170,8 +165,10 @@ void ImuVn100::CreateDiagnosedPublishers() {
   if (enable_rpy_) {
       pd_rpy_.Create<Vector3Stamped>(pnh_, "rpy", updater_, imu_rate_double_);
   }
+  if(sync_info_.SyncEnabled())  {
+      pd_sync_trigger.Create<imu_vn_100::sync_trigger>(pnh_,"sync_trigger",updater_,imu_rate_double_);
+  }
 }
-
 void ImuVn100::Initialize() {
   LoadParameters();
 
@@ -332,14 +329,12 @@ void ImuVn100::Stream(bool async) {
         grp1 |= BG1_YPR;
         sgrp1.push_back("BG1_YPR");
       }
-      ROS_INFO("test group 1 %d",grp1);
+      // Set the binary output data type for group 2
       uint16_t grp2 = BG2_NONE;
       if (sync_info_.SyncEnabled())
 		{
 			grp2 |= BG2_SYNC_OUT_CNT;
-		}
-	  ROS_INFO("test group id %d",grp2);
-	  
+		}	  
       uint16_t grp3 = BG3_NONE;
       std::list<std::string> sgrp3;
       uint16_t grp5 = BG5_NONE;
@@ -449,7 +444,6 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
   sensor_msgs::Imu imu_msg;
   imu_msg.header.stamp = ros::Time::now();
   imu_msg.header.frame_id = frame_id_;
-   ROS_INFO("\n syncount count %d",data.syncOutCnt);
   if (imu_compensated_) {
     RosVector3FromVnVector3(imu_msg.linear_acceleration, data.acceleration);
     RosVector3FromVnVector3(imu_msg.angular_velocity, data.angularRate);
@@ -496,8 +490,19 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
     pd_temp_.Publish(temp_msg);
   }
 
-  sync_info_.Update(data.syncInCnt, imu_msg.header.stamp);
+  if (sync_info_.SyncEnabled()){
+    imu_vn_100::sync_trigger sync_trigger_msg;
+    syncOutCnt = data.syncOutCnt;
+        if (syncOutCnt != syncOutCnt_old)
+        {
+            sync_trigger_msg.header.stamp = ros::Time::now();
+            sync_trigger_msg.data = syncOutCnt;
+            pd_sync_trigger.Publish(sync_trigger_msg);
+        }
+    syncOutCnt_old = syncOutCnt;
+  }
 
+  sync_info_.Update(data.syncInCnt, imu_msg.header.stamp);
   updater_.update();
 }
 

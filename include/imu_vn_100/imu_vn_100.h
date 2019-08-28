@@ -24,6 +24,9 @@
 #include <sensor_msgs/MagneticField.h>
 #include <sensor_msgs/FluidPressure.h>
 #include <sensor_msgs/Temperature.h>
+#include <std_msgs/UInt32.h>
+#include <std_msgs/Time.h>
+#include <imu_vn_100/sync_trigger.h>
 
 #include "vn100.h"
 
@@ -54,6 +57,7 @@ struct DiagnosedPublisher {
     diag->tick(message.header.stamp);
     pub.publish(message);
   }
+
 };
 
 /**
@@ -130,6 +134,9 @@ class ImuVn100 {
   int vpe_heading_mode_ = 1;
   int vpe_filtering_mode_ = 1;
   int vpe_tuning_mode_ = 1;
+  int syncOutCnt_old=0;
+  int syncOutCnt=0;
+
   VnVector3 vpe_mag_base_tuning_;
   VnVector3 vpe_mag_adaptive_tuning_;
   VnVector3 vpe_mag_adaptive_filtering_;
@@ -140,7 +147,7 @@ class ImuVn100 {
   SyncInfo sync_info_;
 
   du::Updater updater_;
-  DiagnosedPublisher pd_imu_, pd_mag_, pd_pres_, pd_temp_, pd_rpy_;
+  DiagnosedPublisher pd_imu_, pd_mag_, pd_pres_, pd_temp_, pd_rpy_, pd_sync_trigger;
 
   void FixImuRate();
   void LoadParameters();

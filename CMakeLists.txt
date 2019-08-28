@@ -7,14 +7,14 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   sensor_msgs
   diagnostic_updater
+  message_generation
 )
 find_package(Boost REQUIRED)
 
-catkin_package(
-  INCLUDE_DIRS include vncpplib/include
-  LIBRARIES imu_vn_100
-  CATKIN_DEPENDS diagnostic_updater roscpp sensor_msgs
-  DEPENDS Boost
+
+add_message_files(
+ FILES
+ sync_trigger.msg
 )
 
 include_directories(
@@ -46,6 +46,18 @@ target_link_libraries(imu_vn_100_node
 add_dependencies(imu_vn_100_node
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
+)
+
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+)
+
+catkin_package(
+  INCLUDE_DIRS include vncpplib/include
+  LIBRARIES imu_vn_100
+  CATKIN_DEPENDS diagnostic_updater roscpp sensor_msgs message_runtime
+  DEPENDS Boost
 )
 
 install(TARGETS imu_vn_100 imu_vn_100_node

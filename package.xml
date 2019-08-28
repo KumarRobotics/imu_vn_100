@@ -10,10 +10,12 @@
   <author email="sunke.polyu@gmail.com">Ke Sun</author>
 
   <buildtool_depend>catkin</buildtool_depend>
-
+  <build_depend>message_generation</build_depend>
+  <exec_depend>message_runtime</exec_depend>
   <depend>diagnostic_updater</depend>
   <depend>roscpp</depend>
   <depend>sensor_msgs</depend>
+  
 
 
   <export>

@@ -243,7 +243,6 @@ VN_ERROR_CODE vn100_setBinaryOutput1Configuration_withgrp2(
 	uint16_t outputGroup5Selections,
 	bool waitForResponse)
 {
-	printf("Inside set binary output configuration with grp 2 function");
 	return vn100_setBinaryOutputConfiguration_withgrp2(
 		vn100,
 		1,
