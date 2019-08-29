@@ -15,7 +15,6 @@
  */
 
 #include <imu_vn_100/imu_vn_100.h>
-#include <ros/console.h>
 #include <geometry_msgs/Vector3Stamped.h>
 
 namespace imu_vn_100 {
@@ -119,6 +118,8 @@ void ImuVn100::LoadParameters() {
   pnh_.param("binary_output", binary_output_, true);
   pnh_.param("binary_async_mode", binary_async_mode_,
              BINARY_ASYNC_MODE_SERIAL_2);
+  pnh_.param("imu_compensated", imu_compensated_, false);	
+  pnh_.param("vpe/enable", vpe_enable_, true);
   pnh_.param("vpe/heading_mode", vpe_heading_mode_, 1);
   pnh_.param("vpe/filtering_mode", vpe_filtering_mode_, 1);
   pnh_.param("vpe/tuning_mode", vpe_tuning_mode_, 1);
@@ -317,7 +318,6 @@ void ImuVn100::Initialize() {
 void ImuVn100::Stream(bool async) {
   // Pause the device first
   VnEnsure(vn100_pauseAsyncOutputs(&imu_, true));
-  
   if (async) {
     VnEnsure(vn100_setAsynchronousDataOutputType(&imu_, VNASYNC_OFF, true));
 
@@ -373,6 +373,10 @@ void ImuVn100::Stream(bool async) {
         std::string s = ss.str();
         s.pop_back();
         ROS_INFO("Streaming #1: %s", s.c_str());
+      }
+      if(sync_info_.SyncEnabled())
+      {
+        ROS_INFO("Streaming #2:  BG2_SYNC_OUT_CNT");
       }
       if (!sgrp3.empty()) {
         std::stringstream ss;
@@ -436,7 +440,7 @@ void ImuVn100::Idle(bool need_reply) {
 
 void ImuVn100::Disconnect() {
   // TODO: why reset the device?
-  //vn100_reset(&imu_);
+  vn100_reset(&imu_);
   vn100_disconnect(&imu_);
 }
 
@@ -489,13 +493,13 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
     temp_msg.temperature = data.temperature;
     pd_temp_.Publish(temp_msg);
   }
-
+  sync_info_.Update(data.syncInCnt, imu_msg.header.stamp);
   if (sync_info_.SyncEnabled()){
     imu_vn_100::sync_trigger sync_trigger_msg;
     syncOutCnt = data.syncOutCnt;
         if (syncOutCnt != syncOutCnt_old)
         {
-            sync_trigger_msg.header.stamp = ros::Time::now();
+            sync_trigger_msg.header = imu_msg.header;
             sync_trigger_msg.data = syncOutCnt;
             pd_sync_trigger.Publish(sync_trigger_msg);
         }

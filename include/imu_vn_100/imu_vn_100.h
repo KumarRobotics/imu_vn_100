@@ -24,8 +24,6 @@
 #include <sensor_msgs/MagneticField.h>
 #include <sensor_msgs/FluidPressure.h>
 #include <sensor_msgs/Temperature.h>
-#include <std_msgs/UInt32.h>
-#include <std_msgs/Time.h>
 #include <imu_vn_100/sync_trigger.h>
 
 #include "vn100.h"

@@ -208,7 +208,6 @@ int vndevice_computeLengthOfBinaryGroupPayload(
 			runningLength += BinaryPacketGroupLengths[groupIndex][i];
 		}
 	}
-	//printf("\n \r running length %d",runningLength);
 	return runningLength;
 }
 
