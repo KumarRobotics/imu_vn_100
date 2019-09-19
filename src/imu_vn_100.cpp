@@ -16,7 +16,7 @@
 
 #include <imu_vn_100/imu_vn_100.h>
 #include <geometry_msgs/Vector3Stamped.h>
-
+# define NANOSEC_TO_SEC 1000000000
 namespace imu_vn_100 {
 
 // LESS HACK IS STILL HACK
@@ -114,6 +114,7 @@ void ImuVn100::LoadParameters() {
 
   pnh_.param("sync_rate", sync_info_.rate, kDefaultSyncOutRate);
   pnh_.param("sync_pulse_width_us", sync_info_.pulse_width_us, 1000);
+  pnh_.param("use_imu_clock",use_imu_clock,true);
 
   pnh_.param("binary_output", binary_output_, true);
   pnh_.param("binary_async_mode", binary_async_mode_,
@@ -143,7 +144,7 @@ void ImuVn100::LoadParameters() {
   pnh_.param("vpe/accel_tuning/adaptive_filtering/x", vpe_accel_adaptive_filtering_.c0, 4.0);
   pnh_.param("vpe/accel_tuning/adaptive_filtering/y", vpe_accel_adaptive_filtering_.c1, 4.0);
   pnh_.param("vpe/accel_tuning/adaptive_filtering/z", vpe_accel_adaptive_filtering_.c2, 4.0);
-
+  ROS_INFO("Use IMU clock %d",use_imu_clock);
   FixImuRate();
   sync_info_.FixSyncRate();
 }
@@ -172,7 +173,6 @@ void ImuVn100::CreateDiagnosedPublishers() {
 }
 void ImuVn100::Initialize() {
   LoadParameters();
-
   ROS_DEBUG("Connecting to device");
   VnEnsure(vn100_connect(&imu_, port_.c_str(), 115200));
   ros::Duration(0.5).sleep();
@@ -331,10 +331,15 @@ void ImuVn100::Stream(bool async) {
       }
       // Set the binary output data type for group 2
       uint16_t grp2 = BG2_NONE;
+      
       if (sync_info_.SyncEnabled())
-		{
-			grp2 |= BG2_SYNC_OUT_CNT;
-		}	  
+	  {
+		  grp2 |= BG2_SYNC_OUT_CNT;
+	  }	
+	  if (use_imu_clock)
+      {
+		  grp2 |= BG2_TIME_STARTUP;
+	  }  
       uint16_t grp3 = BG3_NONE;
       std::list<std::string> sgrp3;
       uint16_t grp5 = BG5_NONE;
@@ -447,10 +452,29 @@ void ImuVn100::Disconnect() {
 void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
   sensor_msgs::Imu imu_msg;
   imu_msg.header.stamp = ros::Time::now();
+  if (use_imu_clock)
+  {
+	  if(is_first_data_point)
+	  {
+		  start_of_node_ros_time = ros::Time::now();
+		  nanoseconds_till_first_data_point = data.timeStartup; // in uint64_t
+		  is_first_data_point = false;
+	  }
+	  
+	  //convert time to int32 seconds and int32 nanoseconds to prevent overflow of buffer
+	  int32_t seconds = (data.timeStartup - nanoseconds_till_first_data_point)/NANOSEC_TO_SEC;
+	  int32_t nanoseconds = (data.timeStartup-nanoseconds_till_first_data_point)%NANOSEC_TO_SEC;
+	  ros::Duration duration(seconds,nanoseconds);
+	  //ROS_INFO_STREAM(" the duration is = "<<duration);
+	  imu_msg.header.stamp = start_of_node_ros_time + duration;
+	  double time_diff = imu_msg.header.stamp.toSec() - ros::Time::now().toSec();
+	  ROS_INFO("the time difference between IMU time clock and ros time clock = %lf", time_diff);
+  }
   imu_msg.header.frame_id = frame_id_;
   if (imu_compensated_) {
     RosVector3FromVnVector3(imu_msg.linear_acceleration, data.acceleration);
     RosVector3FromVnVector3(imu_msg.angular_velocity, data.angularRate);
+    
   } else {
     // NOTE: The IMU angular velocity and linear acceleration outputs are
     // swapped. And also why are they different?

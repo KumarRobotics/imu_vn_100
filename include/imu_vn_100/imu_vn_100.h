@@ -129,6 +129,10 @@ class ImuVn100 {
   bool tf_ned_to_enu_ = false;
 
   bool vpe_enable_ = true;
+  bool use_imu_clock = true; // condition to set variables if we are using IMU clock
+  ros::Time start_of_node_ros_time; // this is the offset time added to the IMU time since startup when 
+  bool is_first_data_point = true;  // this condition used to check whether we have first binary message
+  uint64_t nanoseconds_till_first_data_point = 0; // the variable stores the time since startup that we get when we get our first binary message
   int vpe_heading_mode_ = 1;
   int vpe_filtering_mode_ = 1;
   int vpe_tuning_mode_ = 1;
