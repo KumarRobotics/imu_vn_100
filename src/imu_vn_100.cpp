@@ -168,7 +168,7 @@ void ImuVn100::CreateDiagnosedPublishers() {
       pd_rpy_.Create<Vector3Stamped>(pnh_, "rpy", updater_, imu_rate_double_);
   }
   if(sync_info_.SyncEnabled())  {
-      pd_sync_trigger.Create<imu_vn_100::sync_trigger>(pnh_,"sync_trigger",updater_,imu_rate_double_);
+      pd_sync_trigger.Create<trigger_msgs::sync_trigger>(pnh_,"sync_trigger",updater_,imu_rate_double_);
   }
 }
 void ImuVn100::Initialize() {
@@ -519,12 +519,12 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
   }
   sync_info_.Update(data.syncInCnt, imu_msg.header.stamp);
   if (sync_info_.SyncEnabled()){
-    imu_vn_100::sync_trigger sync_trigger_msg;
+    trigger_msgs::sync_trigger sync_trigger_msg;
     syncOutCnt = data.syncOutCnt;
         if (syncOutCnt != syncOutCnt_old)
         {
             sync_trigger_msg.header = imu_msg.header;
-            sync_trigger_msg.data = syncOutCnt;
+            sync_trigger_msg.count = syncOutCnt;
             pd_sync_trigger.Publish(sync_trigger_msg);
         }
     syncOutCnt_old = syncOutCnt;

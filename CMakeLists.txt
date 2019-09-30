@@ -7,15 +7,11 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   sensor_msgs
   diagnostic_updater
-  message_generation
+  trigger_msgs
 )
 find_package(Boost REQUIRED)
 
 
-add_message_files(
- FILES
- sync_trigger.msg
-)
 
 include_directories(
   include
@@ -56,7 +52,7 @@ generate_messages(
 catkin_package(
   INCLUDE_DIRS include vncpplib/include
   LIBRARIES imu_vn_100
-  CATKIN_DEPENDS diagnostic_updater roscpp sensor_msgs message_runtime
+  CATKIN_DEPENDS diagnostic_updater roscpp sensor_msgs 
   DEPENDS Boost
 )
 

@@ -24,7 +24,7 @@
 #include <sensor_msgs/MagneticField.h>
 #include <sensor_msgs/FluidPressure.h>
 #include <sensor_msgs/Temperature.h>
-#include <imu_vn_100/sync_trigger.h>
+#include <trigger_msgs/sync_trigger.h>
 
 #include "vn100.h"
 
