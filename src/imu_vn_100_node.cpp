@@ -28,8 +28,7 @@ int main(int argc, char** argv) {
   // even from a launch file.
   setvbuf(stdout, nullptr, _IONBF, BUFSIZ);
 
-  auto imu = std::make_shared<imu_vn_100::ImuVn100>();
-  imu->Stream(true);
+  auto imu = std::make_shared<imu_vn_100::ImuVn100>(rclcpp::NodeOptions());
 
   rclcpp::spin(imu);
 

@@ -28,6 +28,7 @@
 #include <geometry_msgs/msg/vector3.hpp>
 #include <geometry_msgs/msg/vector3_stamped.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <rclcpp_components/register_node_macro.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/magnetic_field.hpp>
 #include <sensor_msgs/msg/fluid_pressure.hpp>
@@ -82,10 +83,11 @@ void ImuVn100::SyncInfo::FixSyncRate() {
   }
 }
 
-ImuVn100::ImuVn100() : rclcpp::Node("imu_vn_100")
+ImuVn100::ImuVn100(const rclcpp::NodeOptions& options) : rclcpp::Node("imu_vn_100", options)
 {
   Initialize();
   imu_vn_100_ptr = this;
+  this->Stream(true);
 }
 
 ImuVn100::~ImuVn100() { Disconnect(); }
@@ -547,3 +549,5 @@ void RosQuaternionFromVnQuaternion(geometry_msgs::msg::Quaternion& ros_quat,
 }
 
 }  //  namespace imu_vn_100
+
+RCLCPP_COMPONENTS_REGISTER_NODE(imu_vn_100::ImuVn100)
