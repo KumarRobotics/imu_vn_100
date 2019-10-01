@@ -2,7 +2,7 @@
     <arg name="output" default="screen"/>
     <arg name="imu" default="imu"/>
 
-    <arg name="port" default="/dev/ttyTHS2" />
+    <arg name="port" default="/dev/ttyUSB0" />
     <arg name="frame_id" default="$(arg imu)"/>
     <arg name="baudrate" default="115200"/>
     <arg name="imu_rate" default="100"/>
@@ -17,7 +17,7 @@
 
     <!-- Binary settings -->
     <arg name="binary_output" default="true"/>
-    <arg name="binary_async_mode" default="2"/>
+    <arg name="binary_async_mode" default="1"/>
 
     <arg name="imu_compensated" default="false"/>
 
