@@ -537,7 +537,16 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
     auto mag_msg = std::make_unique<sensor_msgs::msg::MagneticField>();
     mag_msg->header.stamp = now;
     mag_msg->header.frame_id = frame_id_;
-    RosVector3FromVnVector3(mag_msg->magnetic_field, data.magnetic);
+    if (imu_compensated_) {
+      RosVector3FromVnVector3(mag_msg->magnetic_field, data.magnetic);
+    } else {
+      RosVector3FromVnVector3(mag_msg->magnetic_field, data.magneticUncompensated);
+    }
+
+    // The device reports in Gauss but REP 145 specifies that we report in Tesla.
+    mag_msg->magnetic_field.x /= 10000.0;
+    mag_msg->magnetic_field.y /= 10000.0;
+    mag_msg->magnetic_field.z /= 10000.0;
 
     mag_msg->magnetic_field_covariance[0] = magnetic_field_covariance_;
     mag_msg->magnetic_field_covariance[4] = magnetic_field_covariance_;
