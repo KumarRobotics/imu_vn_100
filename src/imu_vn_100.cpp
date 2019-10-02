@@ -111,13 +111,50 @@ void ImuVn100::LoadParameters() {
   initial_baudrate_ = declare_parameter("initial_baudrate", 115200);
   baudrate_ = declare_parameter("baudrate", 921600);
 
-  double linear_acceleration_stddev = declare_parameter("linear_acceleration_stddev", 0.0);
+  // From the datasheet at https://www.vectornav.com/products/vn-100/specifications,
+  // we see that the accelerometer noise density is 0.14 mg/sqrt(Hz) and the bandwidth
+  // is 260 Hz.  We can convert that to RMS (standard deviation) using the following:
+  //
+  // RMS = noise_density * sqrt(bandwidth)
+  // RMS = 0.14 mg/sqrt(Hz) * sqrt(260)
+  // RMS = 2.25743217 mg
+  //
+  // And converting to g:
+  //
+  // RMS = 2.25743217 mg * 1g/1000.0mg
+  // RMS = 0.002257432 g
+  double linear_acceleration_stddev = declare_parameter("linear_acceleration_stddev", 0.002257432);
   linear_acceleration_covariance_ = linear_acceleration_stddev * linear_acceleration_stddev;
 
-  double angular_velocity_stddev = declare_parameter("angular_velocity_stddev", 0.0);
+  // From the datasheet, the gyroscope noise density is 0.0035 degree/second sqrt(Hz),
+  // and the bandwidth is 256 Hz.  Using the formula above:
+  //
+  // RMS = 0.0035 degree/second sqrt(Hz) * sqrt(256)
+  // RMS = 0.056 degree/second
+  //
+  // And converting to radians/sec:
+  //
+  // RMS = 0.056 degree/second * pi/180
+  // RMS = 0.000977384 rad/second
+  double angular_velocity_stddev = declare_parameter("angular_velocity_stddev", 0.000977384);
   angular_velocity_covariance_ = angular_velocity_stddev * angular_velocity_stddev;
 
-  double magnetic_field_stddev = declare_parameter("magnetic_field_stddev", 0.0);
+  // From the datasheet, the magnetic field noise density is 140 uG/sqrt(Hz)
+  // and the bandwidth is 200 Hz.  Using the formula above:
+  //
+  // RMS = 140 uG/sqrt(Hz) * sqrt(200)
+  // RMS = 1979.898987322 uG
+  //
+  // Converting to G:
+  //
+  // RMS = 1979.898987322 uG * 1mG/1000.0uG * 1G/1000.0mG
+  // RMS = 0.001979899 G
+  //
+  // Converting to Tesla:
+  //
+  // RMS = 0.001979899 G * 1T/10000.0G
+  // RMS = 0.000000198 T
+  double magnetic_field_stddev = declare_parameter("magnetic_field_stddev", 0.000000198);
   magnetic_field_covariance_ = magnetic_field_stddev * magnetic_field_stddev;
 
   enable_mag_ = declare_parameter("enable_mag", true);
