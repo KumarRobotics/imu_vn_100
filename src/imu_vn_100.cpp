@@ -111,6 +111,15 @@ void ImuVn100::LoadParameters() {
   initial_baudrate_ = declare_parameter("initial_baudrate", 115200);
   baudrate_ = declare_parameter("baudrate", 921600);
 
+  double linear_acceleration_stddev = declare_parameter("linear_acceleration_stddev", 0.0);
+  linear_acceleration_covariance_ = linear_acceleration_stddev * linear_acceleration_stddev;
+
+  double angular_velocity_stddev = declare_parameter("angular_velocity_stddev", 0.0);
+  angular_velocity_covariance_ = angular_velocity_stddev * angular_velocity_stddev;
+
+  double magnetic_field_stddev = declare_parameter("magnetic_field_stddev", 0.0);
+  magnetic_field_covariance_ = magnetic_field_stddev * magnetic_field_stddev;
+
   enable_mag_ = declare_parameter("enable_mag", true);
   enable_pres_ = declare_parameter("enable_pres", true);
   enable_temp_ = declare_parameter("enable_temp", true);
@@ -157,9 +166,9 @@ void ImuVn100::LoadParameters() {
 
 void ImuVn100::CreatePublishers() {
   imu_rate_double_ = imu_rate_;
-  pd_imu_ = this->create_publisher<sensor_msgs::msg::Imu>("imu", 10);
+  pd_imu_ = this->create_publisher<sensor_msgs::msg::Imu>("imu/data_raw", 10);
   if (enable_mag_) {
-    pd_mag_ = this->create_publisher<sensor_msgs::msg::MagneticField>("magnetic_field", 10);
+    pd_mag_ = this->create_publisher<sensor_msgs::msg::MagneticField>("imu/mag", 10);
   }
   if (enable_pres_) {
     pd_pres_ = this->create_publisher<sensor_msgs::msg::FluidPressure>("fluid_pressure", 10);
@@ -467,6 +476,14 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
   if (binary_output_) {
     RosQuaternionFromVnQuaternion(imu_msg->orientation, data.quaternion);
   }
+  imu_msg->angular_velocity_covariance[0] = angular_velocity_covariance_;
+  imu_msg->angular_velocity_covariance[4] = angular_velocity_covariance_;
+  imu_msg->angular_velocity_covariance[8] = angular_velocity_covariance_;
+
+  imu_msg->linear_acceleration_covariance[0] = linear_acceleration_covariance_;
+  imu_msg->linear_acceleration_covariance[4] = linear_acceleration_covariance_;
+  imu_msg->linear_acceleration_covariance[8] = linear_acceleration_covariance_;
+
   pd_imu_->publish(std::move(imu_msg));
 
   if (enable_rpy_) {
@@ -484,6 +501,11 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
     mag_msg->header.stamp = now;
     mag_msg->header.frame_id = frame_id_;
     RosVector3FromVnVector3(mag_msg->magnetic_field, data.magnetic);
+
+    mag_msg->magnetic_field_covariance[0] = magnetic_field_covariance_;
+    mag_msg->magnetic_field_covariance[4] = magnetic_field_covariance_;
+    mag_msg->magnetic_field_covariance[8] = magnetic_field_covariance_;
+
     pd_mag_->publish(std::move(mag_msg));
   }
 
