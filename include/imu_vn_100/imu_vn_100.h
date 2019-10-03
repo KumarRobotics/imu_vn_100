@@ -41,7 +41,7 @@ class ImuVn100 final : public rclcpp::Node {
   static constexpr int kDefaultImuRate = 100;
   static constexpr int kDefaultSyncOutRate = 20;
 
-  ImuVn100();
+  explicit ImuVn100(const rclcpp::NodeOptions& options);
   ImuVn100(const ImuVn100&) = delete;
   ImuVn100& operator=(const ImuVn100&) = delete;
   ~ImuVn100();
