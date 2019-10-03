@@ -5,6 +5,9 @@ imu_vn_100:
         imu_rate: 100
         initial_baudrate: 115200
         baudrate: 921600
+        linear_acceleration_stddev: 0.002257432
+        angular_velocity_stddev: 0.000977384
+        magnetic_field_stddev: 0.000000198
         enable_mag: true
         enable_pres: true
         enable_temp: true

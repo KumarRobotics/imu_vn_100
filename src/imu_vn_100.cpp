@@ -113,6 +113,52 @@ void ImuVn100::LoadParameters() {
   initial_baudrate_ = declare_parameter("initial_baudrate", 115200);
   baudrate_ = declare_parameter("baudrate", 921600);
 
+  // From the datasheet at https://www.vectornav.com/products/vn-100/specifications,
+  // we see that the accelerometer noise density is 0.14 mg/sqrt(Hz) and the bandwidth
+  // is 260 Hz.  We can convert that to RMS (standard deviation) using the following:
+  //
+  // RMS = noise_density * sqrt(bandwidth)
+  // RMS = 0.14 mg/sqrt(Hz) * sqrt(260)
+  // RMS = 2.25743217 mg
+  //
+  // And converting to g:
+  //
+  // RMS = 2.25743217 mg * 1g/1000.0mg
+  // RMS = 0.002257432 g
+  double linear_acceleration_stddev = declare_parameter("linear_acceleration_stddev", 0.002257432);
+  linear_acceleration_covariance_ = linear_acceleration_stddev * linear_acceleration_stddev;
+
+  // From the datasheet, the gyroscope noise density is 0.0035 degree/second sqrt(Hz),
+  // and the bandwidth is 256 Hz.  Using the formula above:
+  //
+  // RMS = 0.0035 degree/second sqrt(Hz) * sqrt(256)
+  // RMS = 0.056 degree/second
+  //
+  // And converting to radians/sec:
+  //
+  // RMS = 0.056 degree/second * pi/180
+  // RMS = 0.000977384 rad/second
+  double angular_velocity_stddev = declare_parameter("angular_velocity_stddev", 0.000977384);
+  angular_velocity_covariance_ = angular_velocity_stddev * angular_velocity_stddev;
+
+  // From the datasheet, the magnetic field noise density is 140 uG/sqrt(Hz)
+  // and the bandwidth is 200 Hz.  Using the formula above:
+  //
+  // RMS = 140 uG/sqrt(Hz) * sqrt(200)
+  // RMS = 1979.898987322 uG
+  //
+  // Converting to G:
+  //
+  // RMS = 1979.898987322 uG * 1mG/1000.0uG * 1G/1000.0mG
+  // RMS = 0.001979899 G
+  //
+  // Converting to Tesla:
+  //
+  // RMS = 0.001979899 G * 1T/10000.0G
+  // RMS = 0.000000198 T
+  double magnetic_field_stddev = declare_parameter("magnetic_field_stddev", 0.000000198);
+  magnetic_field_covariance_ = magnetic_field_stddev * magnetic_field_stddev;
+
   enable_mag_ = declare_parameter("enable_mag", true);
   enable_pres_ = declare_parameter("enable_pres", true);
   enable_temp_ = declare_parameter("enable_temp", true);
@@ -159,9 +205,9 @@ void ImuVn100::LoadParameters() {
 
 void ImuVn100::CreatePublishers() {
   imu_rate_double_ = imu_rate_;
-  pd_imu_ = this->create_publisher<sensor_msgs::msg::Imu>("imu", 10);
+  pd_imu_ = this->create_publisher<sensor_msgs::msg::Imu>("imu/data_raw", 10);
   if (enable_mag_) {
-    pd_mag_ = this->create_publisher<sensor_msgs::msg::MagneticField>("magnetic_field", 10);
+    pd_mag_ = this->create_publisher<sensor_msgs::msg::MagneticField>("imu/mag", 10);
   }
   if (enable_pres_) {
     pd_pres_ = this->create_publisher<sensor_msgs::msg::FluidPressure>("fluid_pressure", 10);
@@ -469,6 +515,14 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
   if (binary_output_) {
     RosQuaternionFromVnQuaternion(imu_msg->orientation, data.quaternion);
   }
+  imu_msg->angular_velocity_covariance[0] = angular_velocity_covariance_;
+  imu_msg->angular_velocity_covariance[4] = angular_velocity_covariance_;
+  imu_msg->angular_velocity_covariance[8] = angular_velocity_covariance_;
+
+  imu_msg->linear_acceleration_covariance[0] = linear_acceleration_covariance_;
+  imu_msg->linear_acceleration_covariance[4] = linear_acceleration_covariance_;
+  imu_msg->linear_acceleration_covariance[8] = linear_acceleration_covariance_;
+
   pd_imu_->publish(std::move(imu_msg));
 
   if (enable_rpy_) {
@@ -485,7 +539,21 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
     auto mag_msg = std::make_unique<sensor_msgs::msg::MagneticField>();
     mag_msg->header.stamp = now;
     mag_msg->header.frame_id = frame_id_;
-    RosVector3FromVnVector3(mag_msg->magnetic_field, data.magnetic);
+    if (imu_compensated_) {
+      RosVector3FromVnVector3(mag_msg->magnetic_field, data.magnetic);
+    } else {
+      RosVector3FromVnVector3(mag_msg->magnetic_field, data.magneticUncompensated);
+    }
+
+    // The device reports in Gauss but REP 145 specifies that we report in Tesla.
+    mag_msg->magnetic_field.x /= 10000.0;
+    mag_msg->magnetic_field.y /= 10000.0;
+    mag_msg->magnetic_field.z /= 10000.0;
+
+    mag_msg->magnetic_field_covariance[0] = magnetic_field_covariance_;
+    mag_msg->magnetic_field_covariance[4] = magnetic_field_covariance_;
+    mag_msg->magnetic_field_covariance[8] = magnetic_field_covariance_;
+
     pd_mag_->publish(std::move(mag_msg));
   }
 
