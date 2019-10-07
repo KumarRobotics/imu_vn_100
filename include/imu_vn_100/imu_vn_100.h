@@ -116,9 +116,15 @@ class ImuVn100 final : public rclcpp::Node {
 
   SyncInfo sync_info_;
 
-  uint64_t device_time_zero_;
+  rclcpp::Time last_cb_time_;
+  bool synchronize_timestamps_{true};
   rclcpp::Time ros_time_zero_;
-  bool has_time_zero_{false};
+  int64_t cb_delta_epsilon_ns_{0};
+  uint64_t data_time_zero_ns_{0};
+  bool can_publish_{false};
+  int64_t time_resync_interval_ns_{0};
+  int64_t data_interval_ns_{0};
+  uint64_t last_ros_stamp_ns_{0};
 
   rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr pd_imu_;
   rclcpp::Publisher<sensor_msgs::msg::MagneticField>::SharedPtr pd_mag_;
