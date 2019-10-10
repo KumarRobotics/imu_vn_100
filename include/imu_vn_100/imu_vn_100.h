@@ -121,6 +121,7 @@ class ImuVn100 final : public rclcpp::Node {
   bool has_time_zero_{false};
 
   rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr pd_imu_;
+  rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr pd_imu_raw_;
   rclcpp::Publisher<sensor_msgs::msg::MagneticField>::SharedPtr pd_mag_;
   rclcpp::Publisher<sensor_msgs::msg::FluidPressure>::SharedPtr pd_pres_;
   rclcpp::Publisher<sensor_msgs::msg::Temperature>::SharedPtr pd_temp_;
