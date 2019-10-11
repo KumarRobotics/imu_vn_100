@@ -205,19 +205,18 @@ void ImuVn100::LoadParameters() {
 
 void ImuVn100::CreatePublishers() {
   imu_rate_double_ = imu_rate_;
-  pd_imu_ = this->create_publisher<sensor_msgs::msg::Imu>("imu/data", 10);
-  pd_imu_raw_ = this->create_publisher<sensor_msgs::msg::Imu>("imu/data_raw", 10);
+  pd_imu_ = this->create_publisher<sensor_msgs::msg::Imu>("imu/data_raw", 10);
   if (enable_mag_) {
     pd_mag_ = this->create_publisher<sensor_msgs::msg::MagneticField>("imu/mag", 10);
   }
   if (enable_pres_) {
-    pd_pres_ = this->create_publisher<sensor_msgs::msg::FluidPressure>("imu/fluid_pressure", 10);
+    pd_pres_ = this->create_publisher<sensor_msgs::msg::FluidPressure>("fluid_pressure", 10);
   }
   if (enable_temp_) {
-    pd_temp_ = this->create_publisher<sensor_msgs::msg::Temperature>("imu/temperature", 10);
+    pd_temp_ = this->create_publisher<sensor_msgs::msg::Temperature>("temperature", 10);
   }
   if (enable_rpy_) {
-    pd_rpy_ = this->create_publisher<geometry_msgs::msg::Vector3Stamped>("imu/rpy", 10);
+    pd_rpy_ = this->create_publisher<geometry_msgs::msg::Vector3Stamped>("rpy", 10);
   }
 }
 
@@ -498,59 +497,33 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
 
   rclcpp::Time now = ros_time_zero_ + rclcpp::Duration(data.timeStartup - device_time_zero_);
 
-  if (binary_output_) {
-    auto imu_msg = std::make_unique<sensor_msgs::msg::Imu>();
-    imu_msg->header.stamp = now;
-    imu_msg->header.frame_id = frame_id_;
-
-    if (imu_compensated_) {
-      RosVector3FromVnVector3(imu_msg->linear_acceleration, data.acceleration);
-      RosVector3FromVnVector3(imu_msg->angular_velocity, data.angularRate);
-    } else {
-      // NOTE: The IMU angular velocity and linear acceleration outputs are
-      // swapped. And also why are they different?
-      RosVector3FromVnVector3(imu_msg->angular_velocity,
-                              data.accelerationUncompensated);
-      RosVector3FromVnVector3(imu_msg->linear_acceleration,
-                              data.angularRateUncompensated);
-    }
-    RosQuaternionFromVnQuaternion(imu_msg->orientation, data.quaternion);
-
-    imu_msg->angular_velocity_covariance[0] = angular_velocity_covariance_;
-    imu_msg->angular_velocity_covariance[4] = angular_velocity_covariance_;
-    imu_msg->angular_velocity_covariance[8] = angular_velocity_covariance_;
-
-    imu_msg->linear_acceleration_covariance[0] = linear_acceleration_covariance_;
-    imu_msg->linear_acceleration_covariance[4] = linear_acceleration_covariance_;
-    imu_msg->linear_acceleration_covariance[8] = linear_acceleration_covariance_;
-
-    pd_imu_->publish(std::move(imu_msg));
-  }
-
-  auto imu_raw_msg = std::make_unique<sensor_msgs::msg::Imu>();
-  imu_raw_msg->header.stamp = now;
-  imu_raw_msg->header.frame_id = frame_id_;
+  auto imu_msg = std::make_unique<sensor_msgs::msg::Imu>();
+  imu_msg->header.stamp = now;
+  imu_msg->header.frame_id = frame_id_;
 
   if (imu_compensated_) {
-    RosVector3FromVnVector3(imu_raw_msg->linear_acceleration, data.acceleration);
-    RosVector3FromVnVector3(imu_raw_msg->angular_velocity, data.angularRate);
+    RosVector3FromVnVector3(imu_msg->linear_acceleration, data.acceleration);
+    RosVector3FromVnVector3(imu_msg->angular_velocity, data.angularRate);
   } else {
     // NOTE: The IMU angular velocity and linear acceleration outputs are
     // swapped. And also why are they different?
-    RosVector3FromVnVector3(imu_raw_msg->angular_velocity,
+    RosVector3FromVnVector3(imu_msg->angular_velocity,
                             data.accelerationUncompensated);
-    RosVector3FromVnVector3(imu_raw_msg->linear_acceleration,
+    RosVector3FromVnVector3(imu_msg->linear_acceleration,
                             data.angularRateUncompensated);
   }
-  imu_raw_msg->angular_velocity_covariance[0] = angular_velocity_covariance_;
-  imu_raw_msg->angular_velocity_covariance[4] = angular_velocity_covariance_;
-  imu_raw_msg->angular_velocity_covariance[8] = angular_velocity_covariance_;
+  if (binary_output_) {
+    RosQuaternionFromVnQuaternion(imu_msg->orientation, data.quaternion);
+  }
+  imu_msg->angular_velocity_covariance[0] = angular_velocity_covariance_;
+  imu_msg->angular_velocity_covariance[4] = angular_velocity_covariance_;
+  imu_msg->angular_velocity_covariance[8] = angular_velocity_covariance_;
 
-  imu_raw_msg->linear_acceleration_covariance[0] = linear_acceleration_covariance_;
-  imu_raw_msg->linear_acceleration_covariance[4] = linear_acceleration_covariance_;
-  imu_raw_msg->linear_acceleration_covariance[8] = linear_acceleration_covariance_;
+  imu_msg->linear_acceleration_covariance[0] = linear_acceleration_covariance_;
+  imu_msg->linear_acceleration_covariance[4] = linear_acceleration_covariance_;
+  imu_msg->linear_acceleration_covariance[8] = linear_acceleration_covariance_;
 
-  pd_imu_raw_->publish(std::move(imu_raw_msg));
+  pd_imu_->publish(std::move(imu_msg));
 
   if (enable_rpy_) {
     auto rpy_msg = std::make_unique<geometry_msgs::msg::Vector3Stamped>();
