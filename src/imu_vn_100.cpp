@@ -198,6 +198,19 @@ void ImuVn100::LoadParameters() {
   vpe_accel_adaptive_filtering_.c1 = declare_parameter("vpe.accel_tuning.adaptive_filtering.y", 4.0);
   vpe_accel_adaptive_filtering_.c2 = declare_parameter("vpe.accel_tuning.adaptive_filtering.z", 4.0);
 
+  int time_resync_ms = this->declare_parameter("time_resynchronization_interval_ms", 5000);
+  time_resync_interval_ns_ = static_cast<int64_t>(time_resync_ms) * 1000 * 1000;
+
+  int cb_delta_epsilon_ms = this->declare_parameter("callback_delta_epsilon_ms", 1);
+  cb_delta_epsilon_ns_ = cb_delta_epsilon_ms * 1000 * 1000;
+
+  int data_interval_ms = 1000 / imu_rate_;
+  if (cb_delta_epsilon_ms >= data_interval_ms) {
+    throw std::runtime_error("Callback epsilon is larger than the data interval; "
+                             "this can never work");
+  }
+  data_interval_ns_ = data_interval_ms * 1000 * 1000;
+
   FixImuRate();
   sync_info_.FixSyncRate();
   RCLCPP_INFO(get_logger(), "Sync out rate: %d", sync_info_.rate);
@@ -489,91 +502,184 @@ void ImuVn100::Disconnect() {
 }
 
 void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
-  if (!has_time_zero_) {
-    ros_time_zero_ = this->now();
-    device_time_zero_ = data.timeStartup;
-    has_time_zero_ = true;
+  // When publishing the message on the ROS network, we want to publish the
+  // time that the data was acquired in seconds/nanoseconds since the Unix
+  // epoch.  The data we have to work with is the time that the callback
+  // happened (on the local processor, in Unix epoch seconds/nanoseconds), and
+  // the timestamp that the IMU gives us on the callback (from the processor on
+  // the IMU, in nanoseconds since some arbitrary starting point).
+  //
+  // At a first approximation, we can apply the timestamp from the device to
+  // Unix epoch seconds/nanoseconds by taking a common starting point on the IMU
+  // and the local processor, then applying the delta between this IMU timestamp
+  // and the "zero" IMU timestamp to the local processor starting point.
+  //
+  // There are several complications with the simple scheme above.  The first
+  // is finding a proper "zero" point where the IMU timestamp and the local
+  // timestamp line up.  Due to potential delays in servicing this process,
+  // along with USB delays, the delta timestamp from the IMU and the time when
+  // this callback gets called can be wildly different.  Since we want the
+  // initial zero for both the IMU and the local time to be in the same time
+  // "window", we throw away data at the beginning until we see that the delta
+  // callback and delta timestamp are within reasonable bounds of each other.
+  //
+  // The second complication is that the time on the IMU drifts away from the
+  // time on the local processor.  Taking the "zero" time once at the
+  // beginning isn't sufficient, and we have to periodically re-synchronize
+  // the times given the constraints above.  Because we still have the
+  // arbitrary delays present as described above, it can take us several
+  // callbacks to successfully synchronize.  We continue publishing data using
+  // the old "zero" time until we successfully resynchronize, at which point
+  // we switch to the new zero point.
+
+  rclcpp::Time now = this->now();
+
+  // At the beginning of time, need to initialize last_cb_time for later use;
+  // last_cb_time is used to figure out the time between callbacks
+  if (last_cb_time_.nanoseconds() == 0) {
+    last_cb_time_ = now;
+    // We need to initialize the ros_time_zero since rclcpp::Duration
+    // below won't let us subtract an essentially uninitialized
+    // rclcpp::Time from another one.  However, we'll still do an initial
+    // synchronization since the default value of synchronize_timestamp
+    // is true.
+    ros_time_zero_ = now;
+    return;
   }
 
-  rclcpp::Time now = ros_time_zero_ + rclcpp::Duration(data.timeStartup - device_time_zero_);
+  rclcpp::Duration time_since_last_cb = now - last_cb_time_;
+  uint64_t this_ts_ns = data.timeStartup;
 
-  auto imu_msg = std::make_unique<sensor_msgs::msg::Imu>();
-  imu_msg->header.stamp = now;
-  imu_msg->header.frame_id = frame_id_;
-
-  if (imu_compensated_) {
-    RosVector3FromVnVector3(imu_msg->linear_acceleration, data.acceleration);
-    RosVector3FromVnVector3(imu_msg->angular_velocity, data.angularRate);
-  } else {
-    // NOTE: The IMU angular velocity and linear acceleration outputs are
-    // swapped. And also why are they different?
-    RosVector3FromVnVector3(imu_msg->angular_velocity,
-                            data.accelerationUncompensated);
-    RosVector3FromVnVector3(imu_msg->linear_acceleration,
-                            data.angularRateUncompensated);
-  }
-  if (binary_output_) {
-    RosQuaternionFromVnQuaternion(imu_msg->orientation, data.quaternion);
-  }
-  imu_msg->angular_velocity_covariance[0] = angular_velocity_covariance_;
-  imu_msg->angular_velocity_covariance[4] = angular_velocity_covariance_;
-  imu_msg->angular_velocity_covariance[8] = angular_velocity_covariance_;
-
-  imu_msg->linear_acceleration_covariance[0] = linear_acceleration_covariance_;
-  imu_msg->linear_acceleration_covariance[4] = linear_acceleration_covariance_;
-  imu_msg->linear_acceleration_covariance[8] = linear_acceleration_covariance_;
-
-  pd_imu_->publish(std::move(imu_msg));
-
-  if (enable_rpy_) {
-    auto rpy_msg = std::make_unique<geometry_msgs::msg::Vector3Stamped>();
-    rpy_msg->header.stamp = now;
-    rpy_msg->header.frame_id = frame_id_;
-    rpy_msg->vector.z = data.ypr.yaw * M_PI/180.0;
-    rpy_msg->vector.y = data.ypr.pitch * M_PI/180.0;
-    rpy_msg->vector.x = data.ypr.roll * M_PI/180.0;
-    pd_rpy_->publish(std::move(rpy_msg));
-  }
-
-  if (enable_mag_) {
-    auto mag_msg = std::make_unique<sensor_msgs::msg::MagneticField>();
-    mag_msg->header.stamp = now;
-    mag_msg->header.frame_id = frame_id_;
-    if (imu_compensated_) {
-      RosVector3FromVnVector3(mag_msg->magnetic_field, data.magnetic);
+  if (synchronize_timestamps_) {
+    // The only time it's safe to sync time between IMU and ROS Node is when
+    // the data that came in is within the data interval that data is
+    // expected. It's possible for data to come late because of USB issues
+    // or swapping, etc and we don't want to sync with data that was
+    // actually published before this time interval, so we wait until we get
+    // data that is within the data interval +/- an epsilon since we will
+    // have taken some time to process and/or a short delay (maybe USB
+    // comms) may have happened
+    if (time_since_last_cb.nanoseconds() >=
+          (data_interval_ns_ - cb_delta_epsilon_ns_) &&
+        time_since_last_cb.nanoseconds() <=
+          (data_interval_ns_ + cb_delta_epsilon_ns_)) {
+      ros_time_zero_ = now;
+      data_time_zero_ns_ = this_ts_ns;
+      synchronize_timestamps_ = false;
+      can_publish_ = true;
     } else {
-      RosVector3FromVnVector3(mag_msg->magnetic_field, data.magneticUncompensated);
+      RCLCPP_DEBUG(get_logger(),
+                   "Data not within acceptable window for synchronization: "
+                   "expected between %ld and %ld, saw %ld",
+                   data_interval_ns_ - cb_delta_epsilon_ns_,
+                   data_interval_ns_ + cb_delta_epsilon_ns_,
+                   time_since_last_cb.nanoseconds());
+    }
+  }
+
+  if (can_publish_) {  // Cannot publish data until IMU/ROS timestamps have been
+                       // synchronized at least once
+
+    uint64_t imu_diff_in_ns = this_ts_ns - data_time_zero_ns_;
+    uint64_t time_in_ns = ros_time_zero_.nanoseconds() + imu_diff_in_ns;
+
+    if (time_in_ns < last_ros_stamp_ns_) {
+      RCLCPP_WARN(get_logger(), "Time went backwards (%lu < %lu)!",
+                  time_in_ns, last_ros_stamp_ns_);
     }
 
-    // The device reports in Gauss but REP 145 specifies that we report in Tesla.
-    mag_msg->magnetic_field.x /= 10000.0;
-    mag_msg->magnetic_field.y /= 10000.0;
-    mag_msg->magnetic_field.z /= 10000.0;
+    last_ros_stamp_ns_ = time_in_ns;
 
-    mag_msg->magnetic_field_covariance[0] = magnetic_field_covariance_;
-    mag_msg->magnetic_field_covariance[4] = magnetic_field_covariance_;
-    mag_msg->magnetic_field_covariance[8] = magnetic_field_covariance_;
+    rclcpp::Time ros_time = rclcpp::Time(time_in_ns);
 
-    pd_mag_->publish(std::move(mag_msg));
+    auto imu_msg = std::make_unique<sensor_msgs::msg::Imu>();
+    imu_msg->header.stamp = ros_time;
+    imu_msg->header.frame_id = frame_id_;
+
+    if (imu_compensated_) {
+      RosVector3FromVnVector3(imu_msg->linear_acceleration, data.acceleration);
+      RosVector3FromVnVector3(imu_msg->angular_velocity, data.angularRate);
+    } else {
+      // NOTE: The IMU angular velocity and linear acceleration outputs are
+      // swapped. And also why are they different?
+      RosVector3FromVnVector3(imu_msg->angular_velocity,
+                              data.accelerationUncompensated);
+      RosVector3FromVnVector3(imu_msg->linear_acceleration,
+                              data.angularRateUncompensated);
+    }
+    if (binary_output_) {
+      RosQuaternionFromVnQuaternion(imu_msg->orientation, data.quaternion);
+    }
+    imu_msg->angular_velocity_covariance[0] = angular_velocity_covariance_;
+    imu_msg->angular_velocity_covariance[4] = angular_velocity_covariance_;
+    imu_msg->angular_velocity_covariance[8] = angular_velocity_covariance_;
+
+    imu_msg->linear_acceleration_covariance[0] = linear_acceleration_covariance_;
+    imu_msg->linear_acceleration_covariance[4] = linear_acceleration_covariance_;
+    imu_msg->linear_acceleration_covariance[8] = linear_acceleration_covariance_;
+
+    pd_imu_->publish(std::move(imu_msg));
+
+    if (enable_rpy_) {
+      auto rpy_msg = std::make_unique<geometry_msgs::msg::Vector3Stamped>();
+      rpy_msg->header.stamp = ros_time;
+      rpy_msg->header.frame_id = frame_id_;
+      rpy_msg->vector.z = data.ypr.yaw * M_PI/180.0;
+      rpy_msg->vector.y = data.ypr.pitch * M_PI/180.0;
+      rpy_msg->vector.x = data.ypr.roll * M_PI/180.0;
+      pd_rpy_->publish(std::move(rpy_msg));
+    }
+
+    if (enable_mag_) {
+      auto mag_msg = std::make_unique<sensor_msgs::msg::MagneticField>();
+      mag_msg->header.stamp = ros_time;
+      mag_msg->header.frame_id = frame_id_;
+      if (imu_compensated_) {
+        RosVector3FromVnVector3(mag_msg->magnetic_field, data.magnetic);
+      } else {
+        RosVector3FromVnVector3(mag_msg->magnetic_field, data.magneticUncompensated);
+      }
+
+      // The device reports in Gauss but REP 145 specifies that we report in Tesla.
+      mag_msg->magnetic_field.x /= 10000.0;
+      mag_msg->magnetic_field.y /= 10000.0;
+      mag_msg->magnetic_field.z /= 10000.0;
+
+      mag_msg->magnetic_field_covariance[0] = magnetic_field_covariance_;
+      mag_msg->magnetic_field_covariance[4] = magnetic_field_covariance_;
+      mag_msg->magnetic_field_covariance[8] = magnetic_field_covariance_;
+
+      pd_mag_->publish(std::move(mag_msg));
+    }
+
+    if (enable_pres_) {
+      auto pres_msg = std::make_unique<sensor_msgs::msg::FluidPressure>();
+      pres_msg->header.stamp = ros_time;
+      pres_msg->header.frame_id = frame_id_;
+      pres_msg->fluid_pressure = data.pressure;
+      pd_pres_->publish(std::move(pres_msg));
+    }
+
+    if (enable_temp_) {
+      auto temp_msg = std::make_unique<sensor_msgs::msg::Temperature>();
+      temp_msg->header.stamp = ros_time;
+      temp_msg->header.frame_id = frame_id_;
+      temp_msg->temperature = data.temperature;
+      pd_temp_->publish(std::move(temp_msg));
+    }
+
+    sync_info_.Update(data.syncInCnt, ros_time);
   }
 
-  if (enable_pres_) {
-    auto pres_msg = std::make_unique<sensor_msgs::msg::FluidPressure>();
-    pres_msg->header.stamp = now;
-    pres_msg->header.frame_id = frame_id_;
-    pres_msg->fluid_pressure = data.pressure;
-    pd_pres_->publish(std::move(pres_msg));
+  // Determine if we need to resynchronize - time between IMU and ROS Node can
+  // drift, periodically resync to deal with this issue
+  rclcpp::Duration diff = now - ros_time_zero_;
+  if (time_resync_interval_ns_ > 0 &&
+      diff.nanoseconds() >= time_resync_interval_ns_) {
+    synchronize_timestamps_ = true;
   }
 
-  if (enable_temp_) {
-    auto temp_msg = std::make_unique<sensor_msgs::msg::Temperature>();
-    temp_msg->header.stamp = now;
-    temp_msg->header.frame_id = frame_id_;
-    temp_msg->temperature = data.temperature;
-    pd_temp_->publish(std::move(temp_msg));
-  }
-
-  sync_info_.Update(data.syncInCnt, now);
+  last_cb_time_ = now;
 }
 
 void ImuVn100::VnEnsure(const VnErrorCode& error_code) {
