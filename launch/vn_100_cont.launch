@@ -4,17 +4,20 @@
 
     <arg name="port" default="/dev/ttyUSB0" />
     <arg name="frame_id" default="$(arg imu)"/>
-    <arg name="baudrate" default="921600"/>
-    <arg name="imu_rate" default="100"/>
+    <arg name="baudrate" default="460800"/>
+    <arg name="imu_rate" default="400"/>
 
     <!-- Sync out settings -->
     <!-- to disable this just set it to < 0 -->
-    <arg name="sync_rate" default="20"/>
+    <arg name="sync_rate" default="0"/>
     <arg name="sync_pulse_width_us" default="1000"/>
+    
+    <!-- Time to use settings -->
+    <arg name="use_imu_clock" default="true"/>
 
     <!-- Binary settings -->
     <arg name="binary_output" default="true"/>
-    <arg name="binary_async_mode" default="2"/>
+    <arg name="binary_async_mode" default="1"/>
 
     <arg name="imu_compensated" default="false"/>
 
@@ -32,6 +35,7 @@
 
     <node pkg="imu_vn_100" name="$(arg imu)" type="imu_vn_100_node" output="$(arg output)">
         <param name="port" type="string" value="$(arg port)"/>
+        <param name="use_imu_clock" value="$(arg use_imu_clock)"/>
         <param name="baudrate" type="int" value="$(arg baudrate)"/>
         <param name="frame_id" type="string" value="$(arg frame_id)"/>
         <param name="imu_rate" type="int" value="$(arg imu_rate)"/>

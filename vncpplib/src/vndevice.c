@@ -39,7 +39,7 @@
 #define ASCII_RECEIVE_BUFFER_SIZE		256
 #define BINARY_RECEIVE_BUFFER_SIZE		256
 #define READ_BUFFER_SIZE				256
-#define NUMBER_OF_MILLISECONDS_TO_SLEEP_AFTER_RECEIVING_NO_BYTES_ON_COM_PORT_READ	5
+#define NUMBER_OF_MILLISECONDS_TO_SLEEP_AFTER_RECEIVING_NO_BYTES_ON_COM_PORT_READ	.1
 #define DEFAULT_TIMEOUT_IN_MS			5000
 #define ASCII_START_CHAR				'$'
 #define ASCII_FIRST_END_CHAR			'\r'
@@ -50,7 +50,7 @@
    VN-200 user manual. */
 const unsigned char BinaryPacketGroupLengths[6][16] = {
 	{8, 8, 8, 12, 16, 12, 24, 12, 12, 24, 20, 28, 2, 4, 8, 0},		/* Group 1 */
-	{8, 8, 8, 2, 8, 8, 8, 4, 0, 0, 0, 0, 0, 0, 0, 0},				/* Group 2 */
+	{8, 8, 8, 2, 8, 8, 8, 4, 4, 0, 0, 0, 0, 0, 0, 0},				/* Group 2 */
 	{2, 12, 12, 12, 4, 4, 16, 12, 12, 12, 12, 2, 40, 0, 0, 0},		/* Group 3 */
 	{8, 8, 2, 1, 1, 24, 24, 12, 12, 12, 4, 4, 32, 0, 0, 0},			/* Group 4 */
 	{2, 12, 16, 36, 12, 12, 12, 12, 12, 12, 28, 24, 0, 0, 0, 0},	/* Group 5 */
@@ -208,7 +208,6 @@ int vndevice_computeLengthOfBinaryGroupPayload(
 			runningLength += BinaryPacketGroupLengths[groupIndex][i];
 		}
 	}
-
 	return runningLength;
 }
 
@@ -392,7 +391,7 @@ void vndevice_processReceivedBinaryPacket(
 	curGroupFieldPointer = buffer + 1 + 1;
 
 	curDataPointer = buffer + 1 + 1 + numberOfTotalGroupFieldBytes;
-
+	
 	if (groups & 0x01) {
 
 		numberOfDataBytesProcessed = vndevice_processGroup1Data( *((uint16_t*) curGroupFieldPointer), curDataPointer, &data);
@@ -769,6 +768,14 @@ uint16_t vndevice_processGroup2Data(
 
 		groupDataPtr += sizeof (uint32_t);
 	}
+	
+	if (groupField & 0x0100)
+	{
+		data->syncOutCnt = *((uint32_t*) groupDataPtr);
+		groupDataPtr += sizeof(uint32_t);
+	}
+	
+	/*implement here for 0x0100 - synchronisation counter output*/
 
 	return (uint16_t) (groupDataPtr - originalGroupDataPtr);
 }
@@ -1629,15 +1636,15 @@ void* vndevice_communicationHandler(
 		unsigned int curResponsePos = 0;
 
 		vndevice_readData_threadSafe(vndevice, readBuffer, READ_BUFFER_SIZE, &numOfBytesRead);
-
+		//printf("No. of bytes read %d \r \n",numOfBytesRead);
 		if (numOfBytesRead == 0) {
 			/* There was no data. Sleep for a short amount of time before continuing. */
 			vncp_sleepInMs(NUMBER_OF_MILLISECONDS_TO_SLEEP_AFTER_RECEIVING_NO_BYTES_ON_COM_PORT_READ);
 			continue;
 		}
-
+		int loop_counter = 0;
 		for ( ; curResponsePos < numOfBytesRead; curResponsePos++) {
-
+			
 			char curChar = readBuffer[curResponsePos];
 
 			/* Make sure we are not overrunning our ASCII buffer. */
@@ -1745,6 +1752,7 @@ void* vndevice_communicationHandler(
 					binaryGroupsFieldFound = true;
 
 					binaryReceiveBuffer[binaryBufferIndex] = curChar;
+					
 					binaryBufferIndex++;
 
 					expectedNumberOfBinaryGroupFieldBytes = vndevice_numberOfSetBits(binaryGroups) * 2;
@@ -1770,9 +1778,9 @@ void* vndevice_communicationHandler(
 							int payloadLength;
 
 							payloadLength = vndevice_computeLengthOfExpectedBinaryPayload(binaryReceiveBuffer);
-
+							
 							expectedBinaryPacketLength = 2 + expectedNumberOfBinaryGroupFieldBytes + payloadLength + 2;
-
+							
 							if (expectedBinaryPacketLength > BINARY_RECEIVE_BUFFER_SIZE) {
 
 								/* This packet will be too large for our buffer
@@ -1785,7 +1793,6 @@ void* vndevice_communicationHandler(
 					}
 
 					else {
-
 						/* Add this byte to the binary buffer. */
 						binaryReceiveBuffer[binaryBufferIndex] = curChar;
 						binaryBufferIndex++;
@@ -1794,14 +1801,13 @@ void* vndevice_communicationHandler(
 						if (binaryBufferIndex == expectedBinaryPacketLength) {
 
 							/* We might have a packet if we reach here. */
-							uint16_t calculatedCrc;
+							uint16_t calculatedCrc = 0;
 
 							/* Verify the packet is valid. */
 							calculatedCrc = vndevice_checksum_computeCrc16(binaryReceiveBuffer + 1, expectedBinaryPacketLength - 1);
 							if (calculatedCrc == 0) {
 
 								/* We have a valid binary packet. */
-
 								vndevice_processReceivedBinaryPacket(vndevice, binaryReceiveBuffer);
 
 							}
@@ -1841,7 +1847,6 @@ int vndevice_computeLengthOfExpectedBinaryPayload(
 
 		/* We have group 1 present. */
 		runningPayloadLength += vndevice_computeLengthOfBinaryGroupPayload(0, *((uint16_t*) ptrToCurrentGroupField));
-
 		ptrToCurrentGroupField += 2;
 	}
 
@@ -1849,7 +1854,6 @@ int vndevice_computeLengthOfExpectedBinaryPayload(
 
 		/* We have group 2 present. */
 		runningPayloadLength += vndevice_computeLengthOfBinaryGroupPayload(1, *((uint16_t*) ptrToCurrentGroupField));
-
 		ptrToCurrentGroupField += 2;
 	}
 
@@ -1857,7 +1861,6 @@ int vndevice_computeLengthOfExpectedBinaryPayload(
 
 		/* We have group 3 present. */
 		runningPayloadLength += vndevice_computeLengthOfBinaryGroupPayload(2, *((uint16_t*) ptrToCurrentGroupField));
-
 		ptrToCurrentGroupField += 2;
 	}
 
@@ -1865,7 +1868,6 @@ int vndevice_computeLengthOfExpectedBinaryPayload(
 
 		/* We have group 4 present. */
 		runningPayloadLength += vndevice_computeLengthOfBinaryGroupPayload(3, *((uint16_t*) ptrToCurrentGroupField));
-
 		ptrToCurrentGroupField += 2;
 	}
 
@@ -1873,7 +1875,6 @@ int vndevice_computeLengthOfExpectedBinaryPayload(
 
 		/* We have group 5 present. */
 		runningPayloadLength += vndevice_computeLengthOfBinaryGroupPayload(4, *((uint16_t*) ptrToCurrentGroupField));
-
 		ptrToCurrentGroupField += 2;
 	}
 
@@ -1881,7 +1882,6 @@ int vndevice_computeLengthOfExpectedBinaryPayload(
 
 		/* We have group 6 present. */
 		runningPayloadLength += vndevice_computeLengthOfBinaryGroupPayload(5, *((uint16_t*) ptrToCurrentGroupField));
-
 		ptrToCurrentGroupField += 2;
 	}
 
@@ -3403,7 +3403,6 @@ DLL_EXPORT VN_ERROR_CODE vndevice_setBinaryOutputConfiguration(
 	if (outputGroup6Selections != 0) {
 		curBufLoc += sprintf(cmdToSendBuilder + curBufLoc, ",%X", outputGroup6Selections);
 	}
-
 	if (waitForResponse)
 		errorCode = vndevice_transaction(vndevice, cmdToSendBuilder, responseMatch);
 	else

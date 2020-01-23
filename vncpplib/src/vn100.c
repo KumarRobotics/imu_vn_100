@@ -176,6 +176,35 @@ VN_ERROR_CODE vn100_getBinaryOutput5Configuration(
 		outputGroup5Selections);
 }
 
+VN_ERROR_CODE vn100_setBinaryOutputConfiguration_withgrp2(
+	Vn100* vn100,
+	uint8_t binaryOutputRegisterId,
+	uint16_t asyncMode,
+	uint16_t rateDivisor,
+	uint16_t outputGroup1Selections,
+	uint16_t outputGroup2Selections,
+	uint16_t outputGroup3Selections,
+	uint16_t outputGroup5Selections,
+	bool waitForResponse)
+{
+	if (!vn100->isConnected)
+		return VNERR_NOT_CONNECTED;
+
+	return vndevice_setBinaryOutputConfiguration(
+		&vn100->vndevice,
+		binaryOutputRegisterId,
+		asyncMode,
+		rateDivisor,
+		outputGroup1Selections,
+		outputGroup2Selections,
+		outputGroup3Selections,
+		0,
+		outputGroup5Selections,
+		0,
+		waitForResponse);
+
+}
+
 VN_ERROR_CODE vn100_setBinaryOutputConfiguration(
 	Vn100* vn100,
 	uint8_t binaryOutputRegisterId,
@@ -202,6 +231,28 @@ VN_ERROR_CODE vn100_setBinaryOutputConfiguration(
 		0,
 		waitForResponse);
 
+}
+
+VN_ERROR_CODE vn100_setBinaryOutput1Configuration_withgrp2(
+	Vn100* vn100,
+	uint16_t asyncMode,
+	uint16_t rateDivisor,
+	uint16_t outputGroup1Selections,
+	uint16_t outputGroup2Selections,
+	uint16_t outputGroup3Selections,
+	uint16_t outputGroup5Selections,
+	bool waitForResponse)
+{
+	return vn100_setBinaryOutputConfiguration_withgrp2(
+		vn100,
+		1,
+		asyncMode,
+		rateDivisor,
+		outputGroup1Selections,
+		outputGroup2Selections,
+		outputGroup3Selections,
+		outputGroup5Selections,
+		waitForResponse);
 }
 
 VN_ERROR_CODE vn100_setBinaryOutput1Configuration(

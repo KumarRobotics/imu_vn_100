@@ -24,6 +24,7 @@
 #include <sensor_msgs/MagneticField.h>
 #include <sensor_msgs/FluidPressure.h>
 #include <sensor_msgs/Temperature.h>
+#include <trigger_msgs/sync_trigger.h>
 
 #include "vn100.h"
 
@@ -54,6 +55,7 @@ struct DiagnosedPublisher {
     diag->tick(message.header.stamp);
     pub.publish(message);
   }
+
 };
 
 /**
@@ -127,9 +129,16 @@ class ImuVn100 {
   bool tf_ned_to_enu_ = false;
 
   bool vpe_enable_ = true;
+  bool use_imu_clock = true; // condition to set variables if we are using IMU clock
+  ros::Time start_of_node_ros_time; // this is the offset time added to the IMU time since startup when 
+  bool is_first_data_point = true;  // this condition used to check whether we have first binary message
+  uint64_t nanoseconds_till_first_data_point = 0; // the variable stores the time since startup that we get when we get our first binary message
   int vpe_heading_mode_ = 1;
   int vpe_filtering_mode_ = 1;
   int vpe_tuning_mode_ = 1;
+  int syncOutCnt_old=0;
+  int syncOutCnt=0;
+
   VnVector3 vpe_mag_base_tuning_;
   VnVector3 vpe_mag_adaptive_tuning_;
   VnVector3 vpe_mag_adaptive_filtering_;
@@ -140,7 +149,7 @@ class ImuVn100 {
   SyncInfo sync_info_;
 
   du::Updater updater_;
-  DiagnosedPublisher pd_imu_, pd_mag_, pd_pres_, pd_temp_, pd_rpy_;
+  DiagnosedPublisher pd_imu_, pd_mag_, pd_pres_, pd_temp_, pd_rpy_, pd_sync_trigger;
 
   void FixImuRate();
   void LoadParameters();

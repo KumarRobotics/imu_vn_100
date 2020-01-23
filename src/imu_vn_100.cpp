@@ -15,9 +15,8 @@
  */
 
 #include <imu_vn_100/imu_vn_100.h>
-
 #include <geometry_msgs/Vector3Stamped.h>
-
+# define NANOSEC_TO_SEC 1000000000
 namespace imu_vn_100 {
 
 // LESS HACK IS STILL HACK
@@ -115,15 +114,13 @@ void ImuVn100::LoadParameters() {
 
   pnh_.param("sync_rate", sync_info_.rate, kDefaultSyncOutRate);
   pnh_.param("sync_pulse_width_us", sync_info_.pulse_width_us, 1000);
+  pnh_.param("use_imu_clock",use_imu_clock,true);
 
   pnh_.param("binary_output", binary_output_, true);
   pnh_.param("binary_async_mode", binary_async_mode_,
              BINARY_ASYNC_MODE_SERIAL_2);
-
-  pnh_.param("imu_compensated", imu_compensated_, false);
-
+  pnh_.param("imu_compensated", imu_compensated_, false);	
   pnh_.param("vpe/enable", vpe_enable_, true);
-
   pnh_.param("vpe/heading_mode", vpe_heading_mode_, 1);
   pnh_.param("vpe/filtering_mode", vpe_filtering_mode_, 1);
   pnh_.param("vpe/tuning_mode", vpe_tuning_mode_, 1);
@@ -147,7 +144,7 @@ void ImuVn100::LoadParameters() {
   pnh_.param("vpe/accel_tuning/adaptive_filtering/x", vpe_accel_adaptive_filtering_.c0, 4.0);
   pnh_.param("vpe/accel_tuning/adaptive_filtering/y", vpe_accel_adaptive_filtering_.c1, 4.0);
   pnh_.param("vpe/accel_tuning/adaptive_filtering/z", vpe_accel_adaptive_filtering_.c2, 4.0);
-
+  ROS_INFO("Use IMU clock %d",use_imu_clock);
   FixImuRate();
   sync_info_.FixSyncRate();
 }
@@ -170,11 +167,12 @@ void ImuVn100::CreateDiagnosedPublishers() {
   if (enable_rpy_) {
       pd_rpy_.Create<Vector3Stamped>(pnh_, "rpy", updater_, imu_rate_double_);
   }
+  if(sync_info_.SyncEnabled())  {
+      pd_sync_trigger.Create<trigger_msgs::sync_trigger>(pnh_,"sync_trigger",updater_,imu_rate_double_);
+  }
 }
-
 void ImuVn100::Initialize() {
   LoadParameters();
-
   ROS_DEBUG("Connecting to device");
   VnEnsure(vn100_connect(&imu_, port_.c_str(), 115200));
   ros::Duration(0.5).sleep();
@@ -320,7 +318,6 @@ void ImuVn100::Initialize() {
 void ImuVn100::Stream(bool async) {
   // Pause the device first
   VnEnsure(vn100_pauseAsyncOutputs(&imu_, true));
-
   if (async) {
     VnEnsure(vn100_setAsynchronousDataOutputType(&imu_, VNASYNC_OFF, true));
 
@@ -332,6 +329,17 @@ void ImuVn100::Stream(bool async) {
         grp1 |= BG1_YPR;
         sgrp1.push_back("BG1_YPR");
       }
+      // Set the binary output data type for group 2
+      uint16_t grp2 = BG2_NONE;
+      
+      if (sync_info_.SyncEnabled())
+	  {
+		  grp2 |= BG2_SYNC_OUT_CNT;
+	  }	
+	  if (use_imu_clock)
+      {
+		  grp2 |= BG2_TIME_STARTUP;
+	  }  
       uint16_t grp3 = BG3_NONE;
       std::list<std::string> sgrp3;
       uint16_t grp5 = BG5_NONE;
@@ -371,6 +379,10 @@ void ImuVn100::Stream(bool async) {
         s.pop_back();
         ROS_INFO("Streaming #1: %s", s.c_str());
       }
+      if(sync_info_.SyncEnabled())
+      {
+        ROS_INFO("Streaming #2:  BG2_SYNC_OUT_CNT");
+      }
       if (!sgrp3.empty()) {
         std::stringstream ss;
         std::copy(
@@ -393,11 +405,11 @@ void ImuVn100::Stream(bool async) {
         s.pop_back();
         ROS_INFO("Streaming #5: %s", s.c_str());
       }
-      VnEnsure(vn100_setBinaryOutput1Configuration(
+      VnEnsure(vn100_setBinaryOutput1Configuration_withgrp2(
         &imu_,
         binary_async_mode_,
         kBaseImuRate / imu_rate_,
-        grp1, grp3, grp5,
+        grp1, grp2, grp3, grp5,
         true
       ));
     } else {
@@ -440,11 +452,29 @@ void ImuVn100::Disconnect() {
 void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
   sensor_msgs::Imu imu_msg;
   imu_msg.header.stamp = ros::Time::now();
+  if (use_imu_clock)
+  {
+	  if(is_first_data_point)
+	  {
+		  start_of_node_ros_time = ros::Time::now();
+		  nanoseconds_till_first_data_point = data.timeStartup; // in uint64_t
+		  is_first_data_point = false;
+	  }
+	  
+	  //convert time to int32 seconds and int32 nanoseconds to prevent overflow of buffer
+	  int32_t seconds = (data.timeStartup - nanoseconds_till_first_data_point)/NANOSEC_TO_SEC;
+	  int32_t nanoseconds = (data.timeStartup-nanoseconds_till_first_data_point)%NANOSEC_TO_SEC;
+	  ros::Duration duration(seconds,nanoseconds);
+	  //ROS_INFO_STREAM(" the duration is = "<<duration);
+	  imu_msg.header.stamp = start_of_node_ros_time + duration;
+	  //double time_diff = imu_msg.header.stamp.toSec() - ros::Time::now().toSec();
+	  //ROS_INFO("the time difference between IMU time clock and ros time clock = %lf", time_diff);
+  }
   imu_msg.header.frame_id = frame_id_;
-
   if (imu_compensated_) {
     RosVector3FromVnVector3(imu_msg.linear_acceleration, data.acceleration);
     RosVector3FromVnVector3(imu_msg.angular_velocity, data.angularRate);
+    
   } else {
     // NOTE: The IMU angular velocity and linear acceleration outputs are
     // swapped. And also why are they different?
@@ -487,9 +517,22 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
     temp_msg.temperature = data.temperature;
     pd_temp_.Publish(temp_msg);
   }
+  sync_info_.Update(data.syncInCnt, imu_msg.header.stamp);
+  if (sync_info_.SyncEnabled()){
+    trigger_msgs::sync_trigger sync_trigger_msg;
+    syncOutCnt = data.syncOutCnt;
+     ROS_INFO("out of loop syncOutCount = %d",data.syncOutCnt);
+        if (syncOutCnt != syncOutCnt_old)
+        {
+            sync_trigger_msg.header = imu_msg.header;
+            sync_trigger_msg.count = syncOutCnt;
+            ROS_INFO("in loop syncOutCount = %d",syncOutCnt);
+            pd_sync_trigger.Publish(sync_trigger_msg);
+        }
+    syncOutCnt_old = syncOutCnt;
+  }
 
   sync_info_.Update(data.syncInCnt, imu_msg.header.stamp);
-
   updater_.update();
 }
 
