@@ -467,8 +467,8 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
 	  ros::Duration duration(seconds,nanoseconds);
 	  //ROS_INFO_STREAM(" the duration is = "<<duration);
 	  imu_msg.header.stamp = start_of_node_ros_time + duration;
-	  double time_diff = imu_msg.header.stamp.toSec() - ros::Time::now().toSec();
-	  ROS_INFO("the time difference between IMU time clock and ros time clock = %lf", time_diff);
+	  //double time_diff = imu_msg.header.stamp.toSec() - ros::Time::now().toSec();
+	  //ROS_INFO("the time difference between IMU time clock and ros time clock = %lf", time_diff);
   }
   imu_msg.header.frame_id = frame_id_;
   if (imu_compensated_) {
@@ -521,10 +521,12 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
   if (sync_info_.SyncEnabled()){
     trigger_msgs::sync_trigger sync_trigger_msg;
     syncOutCnt = data.syncOutCnt;
+     ROS_INFO("out of loop syncOutCount = %d",data.syncOutCnt);
         if (syncOutCnt != syncOutCnt_old)
         {
             sync_trigger_msg.header = imu_msg.header;
             sync_trigger_msg.count = syncOutCnt;
+            ROS_INFO("in loop syncOutCount = %d",syncOutCnt);
             pd_sync_trigger.Publish(sync_trigger_msg);
         }
     syncOutCnt_old = syncOutCnt;
