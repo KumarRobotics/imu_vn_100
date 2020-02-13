@@ -113,10 +113,28 @@ void ImuVn100::FixImuRate() {
 
 void ImuVn100::LoadParameters() {
   port_ = declare_parameter("port", std::string("/dev/ttyUSB0"));
-  frame_id_ = declare_parameter("frame_id", std::string("imu_link"));
+  frame_id_ = declare_parameter("frame_id", std::string("imu_link_ned"));
   imu_rate_ = declare_parameter("imu_rate", kDefaultImuRate);
   initial_baudrate_ = declare_parameter("initial_baudrate", 115200);
   baudrate_ = declare_parameter("baudrate", 921600);
+  // REP-103 (https://www.ros.org/reps/rep-0103.html) suggests that all ROS
+  // nodes should conform to the ENU convention.  However, it goes on to say
+  // that is acceptable in outdoor applications to use NED with appropriate
+  // suffixes on the frame IDs.  REP-145 (https://www.ros.org/reps/rep-0145.html)
+  // essentially agrees with this.  The VN100T reports orientation in NED, so by
+  // default we report the data in NED and the frame_id above as 'imu_link_ned'.
+  // However, for applications where ENU makes more sense, we allow a switch in
+  // axes convention, and we'll transform the data before publishing.  In that
+  // case, the user should also change the frame_id to "imu_link" or similar.
+  std::string axes_convention = declare_parameter("axes_convention", std::string("NED"));
+
+  if (axes_convention == "NED") {
+    axes_convention_ = AxesConvention::NED;
+  } else if (axes_convention == "ENU") {
+    axes_convention_ = AxesConvention::ENU;
+  } else {
+    throw std::runtime_error("'axes_convention' parameter must be 'NED' or 'ENU'");
+  }
 
   // From the datasheet at https://www.vectornav.com/products/vn-100/specifications,
   // we see that for the VN100 accelerometer:
@@ -642,11 +660,15 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
                                 data.angularRateUncompensated);
       }
 
-      // The device reports orientation in the NED frame, but REP-103 specifies that
-      // it should be in the ENU frame.
-      const VnQuaternion enu_to_ned_quat{std::sqrt(0.5), std::sqrt(0.5), 0., 0.};
-      const VnQuaternion vn_quat_enu = VnQuaternionMultiply(enu_to_ned_quat, data.quaternion);
-      RosQuaternionFromVnQuaternion(imu_msg->orientation, vn_quat_enu);
+      if (axes_convention_ == AxesConvention::ENU) {
+        // The device reports orientation in the NED frame, but the user
+        // requested the ENU frame.
+        const VnQuaternion enu_to_ned_quat{std::sqrt(0.5), std::sqrt(0.5), 0., 0.};
+        const VnQuaternion vn_quat_enu = VnQuaternionMultiply(enu_to_ned_quat, data.quaternion);
+        RosQuaternionFromVnQuaternion(imu_msg->orientation, vn_quat_enu);
+      } else {
+        RosQuaternionFromVnQuaternion(imu_msg->orientation, data.quaternion);
+      }
 
       // Pitch and roll variances are swapped when going from NED to ENU.
       imu_msg->orientation_covariance[0] = data.yprU.c1;
