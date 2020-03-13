@@ -112,6 +112,10 @@ class ImuVn100 final : public rclcpp::Node {
   VnVector3 vpe_accel_adaptive_tuning_{};
   VnVector3 vpe_accel_adaptive_filtering_{};
 
+  int hsi_mode_;
+  int hsi_output_;
+  int hsi_converge_rate_;
+
   SyncInfo sync_info_;
 
   rclcpp::Time last_cb_time_;

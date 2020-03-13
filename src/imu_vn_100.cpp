@@ -256,6 +256,10 @@ void ImuVn100::LoadParameters() {
   vpe_accel_adaptive_filtering_.c1 = declare_parameter("vpe.accel_tuning.adaptive_filtering.y", 4.0);
   vpe_accel_adaptive_filtering_.c2 = declare_parameter("vpe.accel_tuning.adaptive_filtering.z", 4.0);
 
+  hsi_mode_ = declare_parameter("hsi.mode", 1);
+  hsi_output_ = declare_parameter("hsi.output", 3);
+  hsi_converge_rate_ = declare_parameter("hsi.converge_rate", 5);
+
   int time_resync_ms = this->declare_parameter("time_resynchronization_interval_ms", 5000);
   time_resync_interval_ns_ = static_cast<int64_t>(time_resync_ms) * 1000 * 1000;
 
@@ -431,6 +435,28 @@ void ImuVn100::Initialize() {
         vpe_accel_adaptive_tuning_,
         vpe_accel_adaptive_filtering_,
         true));
+  }
+
+  uint8_t hsi_mode;
+  uint8_t hsi_output;
+  uint8_t hsi_converge_rate;
+  VnEnsure(vn100_getMagnetometerCalibrationControl(&imu_, &hsi_mode, &hsi_output,
+                                                   &hsi_converge_rate));
+  RCLCPP_INFO(get_logger(), "Default HSI mode: %hhu", hsi_mode);
+  RCLCPP_INFO(get_logger(), "Default HSI output: %hhu", hsi_output);
+  RCLCPP_INFO(get_logger(), "Default HSI converge rate: %hhu", hsi_converge_rate);
+  if (hsi_mode != hsi_mode_ ||
+      hsi_output != hsi_output_ ||
+      hsi_converge_rate != hsi_converge_rate_) {
+    RCLCPP_INFO(get_logger(), "Setting HSI mode: %hhu", hsi_mode);
+    RCLCPP_INFO(get_logger(), "Setting HSI output: %hhu", hsi_output);
+    RCLCPP_INFO(get_logger(), "Setting HSI converge rate: %hhu", hsi_converge_rate);
+    VnEnsure(vn100_setMagnetometerCalibrationControl(
+      &imu_,
+      hsi_mode,
+      hsi_output,
+      hsi_converge_rate,
+      true));
   }
 
   CreatePublishers();
