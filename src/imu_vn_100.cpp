@@ -29,9 +29,10 @@
 #include <geometry_msgs/msg/vector3_stamped.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
+#include <sensor_msgs/msg/fluid_pressure.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/magnetic_field.hpp>
-#include <sensor_msgs/msg/fluid_pressure.hpp>
+#include <sensor_msgs/msg/nav_sat_fix.hpp>
 #include <sensor_msgs/msg/temperature.hpp>
 
 namespace imu_vn_100 {
@@ -260,6 +261,9 @@ void ImuVn100::LoadParameters() {
   hsi_output_ = declare_parameter("hsi.output", 3);
   hsi_converge_rate_ = declare_parameter("hsi.converge_rate", 5);
 
+  ref_use_models_ = declare_parameter("ref.use_models", true);
+  ref_recalc_threshold_m_ = declare_parameter("ref.recalc_threshold_m", 10);
+
   int time_resync_ms = this->declare_parameter("time_resynchronization_interval_ms", 5000);
   time_resync_interval_ns_ = static_cast<int64_t>(time_resync_ms) * 1000 * 1000;
 
@@ -294,6 +298,30 @@ void ImuVn100::CreatePublishers() {
   if (enable_rpy_) {
     pd_rpy_ = this->create_publisher<geometry_msgs::msg::Vector3Stamped>("imu/rpy", 10);
   }
+}
+
+void ImuVn100::CreateSubscribers() {
+  if (ref_use_models_) {
+    sub_gps_fix_ = this->create_subscription<sensor_msgs::msg::NavSatFix>(
+        "gps/fix", 10, std::bind(&ImuVn100::HandleGPSFix, this, std::placeholders::_1));
+  }
+}
+
+void ImuVn100::HandleGPSFix(std::unique_ptr<sensor_msgs::msg::NavSatFix> msg) {
+  VnVector3 fix;
+  fix.c0 = msg->latitude;
+  fix.c1 = msg->longitude;
+  fix.c2 = msg->altitude;
+
+  constexpr double kSecondsPerYear = 3600.0 * 24.0 * 365.2425;
+  float fix_date = static_cast<float>(
+      rclcpp::Time(msg->header.stamp).seconds() / kSecondsPerYear);
+
+  constexpr uint8_t kUseMagneticModel = 1;
+  constexpr uint8_t kUseGravityModel = 1;
+  VnEnsure(vn100_setReferenceVectorConfiguration(
+      &imu_, kUseMagneticModel, kUseGravityModel,
+      ref_recalc_threshold_m_, fix_date, fix, true));
 }
 
 void ImuVn100::Initialize() {
@@ -458,6 +486,8 @@ void ImuVn100::Initialize() {
       hsi_converge_rate,
       true));
   }
+
+  CreateSubscribers();
 
   CreatePublishers();
 

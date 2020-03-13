@@ -21,9 +21,10 @@
 
 #include <geometry_msgs/msg/vector3_stamped.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/fluid_pressure.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/magnetic_field.hpp>
-#include <sensor_msgs/msg/fluid_pressure.hpp>
+#include <sensor_msgs/msg/nav_sat_fix.hpp>
 #include <sensor_msgs/msg/temperature.hpp>
 
 #include "vn100.h"
@@ -116,6 +117,9 @@ class ImuVn100 final : public rclcpp::Node {
   int hsi_output_;
   int hsi_converge_rate_;
 
+  bool ref_use_models_;
+  uint32_t ref_recalc_threshold_m_;
+
   SyncInfo sync_info_;
 
   rclcpp::Time last_cb_time_;
@@ -134,9 +138,13 @@ class ImuVn100 final : public rclcpp::Node {
   rclcpp::Publisher<sensor_msgs::msg::FluidPressure>::SharedPtr pd_pres_;
   rclcpp::Publisher<sensor_msgs::msg::Temperature>::SharedPtr pd_temp_;
   rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr pd_rpy_;
+  rclcpp::Subscription<sensor_msgs::msg::NavSatFix>::SharedPtr sub_gps_fix_;
+
+  void HandleGPSFix(std::unique_ptr<sensor_msgs::msg::NavSatFix> msg);
 
   void FixImuRate();
   void LoadParameters();
+  void CreateSubscribers();
   void CreatePublishers();
 
   // Just don't like type that is ALL CAP

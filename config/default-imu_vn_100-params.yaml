@@ -52,3 +52,6 @@ imu_vn_100:
           mode: 1
           output: 3
           converge_rate: 5
+        ref:
+          use_models: false
+          recalc_threshold_m: 10
