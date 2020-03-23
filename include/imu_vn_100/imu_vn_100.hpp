@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-#ifndef IMU_VN_100_ROS_H_
-#define IMU_VN_100_ROS_H_
+#ifndef IMU_VN_100_HPP_
+#define IMU_VN_100_HPP_
 
-#include <memory>
 #include <string>
 
 #include <geometry_msgs/msg/vector3_stamped.hpp>
@@ -44,19 +43,15 @@ class ImuVn100 final : public rclcpp::Node {
   explicit ImuVn100(const rclcpp::NodeOptions& options);
   ImuVn100(const ImuVn100&) = delete;
   ImuVn100& operator=(const ImuVn100&) = delete;
-  ~ImuVn100();
+  ~ImuVn100() override;
 
   void Initialize();
 
-  void Stream(bool async = true);
+  void Stream(bool async);
 
   void PublishData(const VnDeviceCompositeData& data);
 
   void RequestOnce();
-
-  void Idle(bool need_reply = true);
-
-  void Resume(bool need_reply = true);
 
   void Disconnect();
 
@@ -76,43 +71,41 @@ class ImuVn100 final : public rclcpp::Node {
     bool SyncEnabled() const;
   };
 
-  const SyncInfo sync_info() const { return sync_info_; }
-
  private:
-  Vn100 imu_;
+  Vn100 imu_{};
 
   // Settings
   std::string port_;
-  uint32_t baudrate_;
-  uint32_t initial_baudrate_;
-  int imu_rate_;
-  double imu_rate_double_;
+  uint32_t baudrate_{0};
+  uint32_t initial_baudrate_{0};
+  int imu_rate_{0};
+  double imu_rate_double_{0.0};
   std::string frame_id_;
 
-  double linear_acceleration_covariance_;
-  double angular_velocity_covariance_;
-  double magnetic_field_covariance_;
+  double linear_acceleration_covariance_{0.0};
+  double angular_velocity_covariance_{0.0};
+  double magnetic_field_covariance_{0.0};
 
-  bool enable_mag_;
-  bool enable_pres_;
-  bool enable_temp_;
-  bool enable_rpy_;
+  bool enable_mag_{false};
+  bool enable_pres_{false};
+  bool enable_temp_{false};
+  bool enable_rpy_{false};
 
-  bool binary_output_;
-  int binary_async_mode_;
+  bool binary_output_{false};
+  int binary_async_mode_{0};
 
-  bool imu_compensated_;
+  bool imu_compensated_{false};
 
-  bool vpe_enable_;
-  int vpe_heading_mode_;
-  int vpe_filtering_mode_;
-  int vpe_tuning_mode_;
-  VnVector3 vpe_mag_base_tuning_;
-  VnVector3 vpe_mag_adaptive_tuning_;
-  VnVector3 vpe_mag_adaptive_filtering_;
-  VnVector3 vpe_accel_base_tuning_;
-  VnVector3 vpe_accel_adaptive_tuning_;
-  VnVector3 vpe_accel_adaptive_filtering_;
+  bool vpe_enable_{false};
+  int vpe_heading_mode_{0};
+  int vpe_filtering_mode_{0};
+  int vpe_tuning_mode_{0};
+  VnVector3 vpe_mag_base_tuning_{};
+  VnVector3 vpe_mag_adaptive_tuning_{};
+  VnVector3 vpe_mag_adaptive_filtering_{};
+  VnVector3 vpe_accel_base_tuning_{};
+  VnVector3 vpe_accel_adaptive_tuning_{};
+  VnVector3 vpe_accel_adaptive_filtering_{};
 
   SyncInfo sync_info_;
 
@@ -139,9 +132,9 @@ class ImuVn100 final : public rclcpp::Node {
 
   // Just don't like type that is ALL CAP
   using VnErrorCode = VN_ERROR_CODE;
-  void VnEnsure(const VnErrorCode& error_code);
+  static void VnEnsure(const VnErrorCode& error_code);
 };
 
 }  // namespace imu_vn_100
 
-#endif  // IMU_VN_100_ROS_H_
+#endif  // IMU_VN_100_HPP_
