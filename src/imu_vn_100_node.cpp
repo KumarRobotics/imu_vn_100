@@ -17,9 +17,7 @@
 #include <memory>
 
 #include <rclcpp/rclcpp.hpp>
-#include <imu_vn_100/imu_vn_100.h>
-
-using namespace imu_vn_100;
+#include <imu_vn_100/imu_vn_100.hpp>
 
 int main(int argc, char** argv) {
   rclcpp::init(argc, argv);

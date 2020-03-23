@@ -2817,7 +2817,7 @@ void vndevice_processAsyncData(
 			return;
 		data.angularRateBias.c2 = atof(result);
 		result = strtok(0, delims);
-		if (result == NULL) {
+		if (result != NULL) {
       memcpy(sync_count, result+1, 10);
       data.syncInCnt = atoi(sync_count);
     }
@@ -2850,7 +2850,7 @@ void vndevice_processAsyncData(
 			return;
 		data.angularRateBiasVariance.c2 = atof(result);
 		result = strtok(0, delims);
-		if (result == NULL) {
+		if (result != NULL) {
       memcpy(sync_count, result+1, 10);
       data.syncInCnt = atoi(sync_count);
     }
@@ -3110,7 +3110,7 @@ void vndevice_processAsyncData(
 			return;
 		data.velU = (float) atof(result);
 		result = strtok(0, delims);
-		if (result == NULL) {
+		if (result != NULL) {
       memcpy(sync_count, result+1, 10);
       data.syncInCnt = atoi(sync_count);
     }

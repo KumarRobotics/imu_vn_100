@@ -22,7 +22,7 @@
 #include <stdexcept>
 #include <string>
 
-#include <imu_vn_100/imu_vn_100.h>
+#include <imu_vn_100/imu_vn_100.hpp>
 
 #include <geometry_msgs/msg/quaternion.hpp>
 #include <geometry_msgs/msg/vector3.hpp>
@@ -55,7 +55,9 @@ constexpr int ImuVn100::kDefaultSyncOutRate;
 
 void ImuVn100::SyncInfo::Update(const unsigned sync_count,
                                 const rclcpp::Time& sync_time) {
-  if (rate <= 0) return;
+  if (rate <= 0) {
+    return;
+  }
 
   if (count != sync_count) {
     count = sync_count;
@@ -73,7 +75,7 @@ void ImuVn100::SyncInfo::FixSyncRate() {
     }
     skip_count =
         (std::floor(ImuVn100::kBaseImuRate / static_cast<double>(rate) +
-                    0.5f)) -
+                    0.5)) -
         1;
 
     if (pulse_width_us > 10000) {
@@ -394,7 +396,7 @@ void ImuVn100::Stream(bool async) {
       std::list<std::string> sgrp1 = {"BG1_QTN", "BG1_SYNC_IN_CNT", "BG1_TIME_STARTUP"};
       if (enable_rpy_) {
         grp1 |= BG1_YPR;
-        sgrp1.push_back("BG1_YPR");
+        sgrp1.emplace_back("BG1_YPR");
       }
       uint16_t grp3 = BG3_NONE;
       std::list<std::string> sgrp3;
@@ -402,27 +404,27 @@ void ImuVn100::Stream(bool async) {
       std::list<std::string> sgrp5;
       if (imu_compensated_) {
         grp1 |=  BG1_ACCEL | BG1_ANGULAR_RATE;
-        sgrp1.push_back("BG1_ACCEL");
-        sgrp1.push_back("BG1_ANGULAR_RATE");
+        sgrp1.emplace_back("BG1_ACCEL");
+        sgrp1.emplace_back("BG1_ANGULAR_RATE");
         if (enable_mag_) {
           grp3 |= BG3_MAG;
-          sgrp3.push_back("BG3_MAG");
+          sgrp3.emplace_back("BG3_MAG");
         }
       } else {
         grp1 |=  BG1_IMU;
-        sgrp1.push_back("BG1_IMU");
+        sgrp1.emplace_back("BG1_IMU");
         if (enable_mag_) {
           grp3 |= BG3_UNCOMP_MAG;
-          sgrp3.push_back("BG3_UNCOMP_MAG");
+          sgrp3.emplace_back("BG3_UNCOMP_MAG");
         }
       }
       if (enable_temp_) {
           grp3 |= BG3_TEMP;
-          sgrp3.push_back("BG3_TEMP");
+          sgrp3.emplace_back("BG3_TEMP");
       }
       if (enable_pres_) {
           grp3 |= BG3_PRES;
-          sgrp3.push_back("BG3_PRES");
+          sgrp3.emplace_back("BG3_PRES");
       }
       if (!sgrp1.empty()) {
         std::stringstream ss;
@@ -485,14 +487,6 @@ void ImuVn100::Stream(bool async) {
 
   // Resume the device
   VnEnsure(vn100_resumeAsyncOutputs(&imu_, true));
-}
-
-void ImuVn100::Resume(bool need_reply) {
-  vn100_resumeAsyncOutputs(&imu_, need_reply);
-}
-
-void ImuVn100::Idle(bool need_reply) {
-  vn100_pauseAsyncOutputs(&imu_, need_reply);
 }
 
 void ImuVn100::Disconnect() {
@@ -710,7 +704,9 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
 }
 
 void ImuVn100::VnEnsure(const VnErrorCode& error_code) {
-  if (error_code == VNERR_NO_ERROR) return;
+  if (error_code == VNERR_NO_ERROR) {
+    return;
+  }
 
   switch (error_code) {
     case VNERR_UNKNOWN_ERROR:
