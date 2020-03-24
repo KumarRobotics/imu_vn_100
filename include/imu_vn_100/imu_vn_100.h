@@ -17,15 +17,19 @@
 #ifndef IMU_VN_100_ROS_H_
 #define IMU_VN_100_ROS_H_
 
-#include <ros/ros.h>
 #include <diagnostic_updater/diagnostic_updater.h>
 #include <diagnostic_updater/publisher.h>
+#include <ros/ros.h>
+#include <sensor_msgs/FluidPressure.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/MagneticField.h>
-#include <sensor_msgs/FluidPressure.h>
 #include <sensor_msgs/Temperature.h>
 
-#include "vn100.h"
+#include <boost/chrono/chrono.hpp>
+#include <boost/thread/lock_guard.hpp>
+#include <boost/thread/mutex.hpp>
+
+#include "vncpp/vn100.h"
 
 namespace imu_vn_100 {
 
@@ -95,13 +99,31 @@ class ImuVn100 {
     double rate_double = -1;
     int pulse_width_us = 1000;
     int skip_count = 0;
+    boost::mutex mtx_;
+    boost::condition_variable cv_;
 
-    void Update(const unsigned sync_count, const ros::Time& sync_time);
+    const ros::Time getSyncTime() {
+      boost::lock_guard<boost::mutex> guard(mtx_);
+      return time;
+    }
+
+    const ros::Time waitForNewTime(const ros::Time& t, int64_t maxWait) {
+      boost::unique_lock<boost::mutex> guard(mtx_);
+      while (t >= time) {
+        if (cv_.wait_for(guard, boost::chrono::nanoseconds(maxWait)) ==
+            boost::cv_status::timeout) {
+          break;
+        }
+      }
+      return (time);
+    }
+    bool Update(const unsigned sync_count, const ros::Time& sync_time,
+                const ros::Duration& time_since_sync_in);
     void FixSyncRate();
     bool SyncEnabled() const;
   };
 
-  const SyncInfo sync_info() const { return sync_info_; }
+  SyncInfo& sync_info() { return sync_info_; }
 
  private:
   ros::NodeHandle pnh_;
@@ -117,30 +139,13 @@ class ImuVn100 {
   bool enable_mag_ = true;
   bool enable_pres_ = true;
   bool enable_temp_ = true;
-  bool enable_rpy_ = false;
-
   bool binary_output_ = true;
-  int binary_async_mode_ = BINARY_ASYNC_MODE_SERIAL_2;
-
-  bool imu_compensated_ = false;
-
-  bool tf_ned_to_enu_ = false;
-
-  bool vpe_enable_ = true;
-  int vpe_heading_mode_ = 1;
-  int vpe_filtering_mode_ = 1;
-  int vpe_tuning_mode_ = 1;
-  VnVector3 vpe_mag_base_tuning_;
-  VnVector3 vpe_mag_adaptive_tuning_;
-  VnVector3 vpe_mag_adaptive_filtering_;
-  VnVector3 vpe_accel_base_tuning_;
-  VnVector3 vpe_accel_adaptive_tuning_;
-  VnVector3 vpe_accel_adaptive_filtering_;
 
   SyncInfo sync_info_;
+  ros::Duration imu_timestamp_offset_;
 
   du::Updater updater_;
-  DiagnosedPublisher pd_imu_, pd_mag_, pd_pres_, pd_temp_, pd_rpy_;
+  DiagnosedPublisher pd_imu_, pd_mag_, pd_pres_, pd_temp_;
 
   void FixImuRate();
   void LoadParameters();
