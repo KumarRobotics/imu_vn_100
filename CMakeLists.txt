@@ -8,7 +8,7 @@ find_package(catkin REQUIRED COMPONENTS roscpp sensor_msgs diagnostic_updater)
 catkin_package(
   INCLUDE_DIRS
   include
-  vncpplib/include/vncpp
+  vncpplib/include
   LIBRARIES
   ${PROJECT_NAME}
   CATKIN_DEPENDS
