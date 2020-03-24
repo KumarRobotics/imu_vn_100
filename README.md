@@ -87,9 +87,6 @@ Make sure you have ownership of the device in `/dev`.
 2. Why I have permission error during the initialization process of the driver?
 Most often, this is because the baud rate you set does not match the package size to be received. Try increase the baud rate.
 
-## Bug Report
-
-Prefer to open an issue. You can also send an E-mail to sunke.polyu@gmail.com.
 
 ## Bugs or Features Required of the Official SDK
 
