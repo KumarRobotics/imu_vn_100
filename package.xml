@@ -5,8 +5,8 @@
   <description>The imu_vn_100 package</description>
 
   <maintainer email="sunke.polyu@gmail.com">Ke Sun</maintainer>
+  <license>MIT</license>  <!-- for the vncpplib components -->
   <license>Apache 2.0</license>
-  <!-- <url type="website">http://wiki.ros.org/imu_vn_100</url> -->
   <author email="sunke.polyu@gmail.com">Ke Sun</author>
 
   <buildtool_depend>ament_cmake_ros</buildtool_depend>

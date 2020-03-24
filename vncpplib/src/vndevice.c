@@ -5667,7 +5667,7 @@ VN_ERROR_CODE vndevice_setReferenceVectorConfiguration(
 	int errorCode;
 	char cmdToSendBuilder[VN_MAX_COMMAND_SIZE];
 
-	sprintf(cmdToSendBuilder, "$VNWRG,83,%d,%d,%d,0,0,%+09.6f,%+09.6f,%+09.6f,%+09.6f",
+	sprintf(cmdToSendBuilder, "$VNWRG,83,%d,%d,0,0,%d,%+09.6f,%+09.6f,%+09.6f,%+09.6f",
 		useMagModel,
 		useGravityModel,
 		recalcThreshold,
