@@ -29,9 +29,10 @@
 #include <geometry_msgs/msg/vector3_stamped.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_components/register_node_macro.hpp>
+#include <sensor_msgs/msg/fluid_pressure.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/magnetic_field.hpp>
-#include <sensor_msgs/msg/fluid_pressure.hpp>
+#include <sensor_msgs/msg/nav_sat_fix.hpp>
 #include <sensor_msgs/msg/temperature.hpp>
 
 namespace imu_vn_100 {
@@ -43,6 +44,9 @@ void RosVector3FromVnVector3(geometry_msgs::msg::Vector3& ros_vec3,
                              const VnVector3& vn_vec3);
 void RosQuaternionFromVnQuaternion(geometry_msgs::msg::Quaternion& ros_quat,
                                    const VnQuaternion& vn_quat);
+
+// Basic multiplication operation for VnQuaternion datatypes.
+VnQuaternion VnQuaternionMultiply(VnQuaternion a, VnQuaternion b);
 
 void AsyncListener(void* sender, VnDeviceCompositeData* data) {
   (void)sender;
@@ -110,56 +114,109 @@ void ImuVn100::FixImuRate() {
 
 void ImuVn100::LoadParameters() {
   port_ = declare_parameter("port", std::string("/dev/ttyUSB0"));
-  frame_id_ = declare_parameter("frame_id", std::string("imu_link"));
+  frame_id_ = declare_parameter("frame_id", std::string("imu_link_ned"));
   imu_rate_ = declare_parameter("imu_rate", kDefaultImuRate);
   initial_baudrate_ = declare_parameter("initial_baudrate", 115200);
   baudrate_ = declare_parameter("baudrate", 921600);
+  // REP-103 (https://www.ros.org/reps/rep-0103.html) suggests that all ROS
+  // nodes should conform to the ENU convention.  However, it goes on to say
+  // that is acceptable in outdoor applications to use NED with appropriate
+  // suffixes on the frame IDs.  REP-145 (https://www.ros.org/reps/rep-0145.html)
+  // essentially agrees with this.  The VN100T reports orientation in NED, so by
+  // default we report the data in NED and the frame_id above as 'imu_link_ned'.
+  // However, for applications where ENU makes more sense, we allow a switch in
+  // axes convention, and we'll transform the data before publishing.  In that
+  // case, the user should also change the frame_id to "imu_link" or similar.
+  std::string axes_convention = declare_parameter("axes_convention", std::string("NED"));
+
+  if (axes_convention == "NED") {
+    axes_convention_ = AxesConvention::NED;
+  } else if (axes_convention == "ENU") {
+    axes_convention_ = AxesConvention::ENU;
+  } else {
+    throw std::runtime_error("'axes_convention' parameter must be 'NED' or 'ENU'");
+  }
 
   // From the datasheet at https://www.vectornav.com/products/vn-100/specifications,
-  // we see that the accelerometer noise density is 0.14 mg/sqrt(Hz) and the bandwidth
-  // is 260 Hz.  We can convert that to RMS (standard deviation) using the following:
+  // we see that for the VN100 accelerometer:
   //
-  // RMS = noise_density * sqrt(bandwidth)
-  // RMS = 0.14 mg/sqrt(Hz) * sqrt(260)
-  // RMS = 2.25743217 mg
+  // - Noise density Nₐ = 0.14 mg/√Hz and its bandwidth BWₐ = 260 Hz, and thus
   //
-  // And converting to g:
+  //   nₐ = Nₐ * √BWₐ
   //
-  // RMS = 2.25743217 mg * 1g/1000.0mg
-  // RMS = 0.002257432 g
-  double linear_acceleration_stddev = declare_parameter("linear_acceleration_stddev", 0.002257432);
-  linear_acceleration_covariance_ = linear_acceleration_stddev * linear_acceleration_stddev;
+  // - Resolution Rₐ < 0.5 mg, and thus
+  //
+  //   σ(Rₐ) = max(Rₐ) / √12
+  //
+  // - Linearity Lₐ < 0.5% * 16g, and thus
+  //
+  //   σ(Lₐ) = 2 * max(Lₐ) / √12
+  //
+  // - Aligment error |Tₐ| < 0.05° and |Mₐ| < 16g, and thus
+  //
+  //   σ(|Tₐ|) = √2 * sin(max|Tₐ|) * |Mₐ|
+  //
+  // Therefore:
+  //
+  // σ(Mₐ) = √(nₐ² + σ²(Rₐ) + σ²(Lₐ) + σ²(|Tₐ|))
+  // σ(Mₐ) = 0.0502828038g
+  //
+  double linear_acceleration_stddev = declare_parameter("linear_acceleration_stddev", 0.0502828038);
+  linear_acceleration_variance_ = linear_acceleration_stddev * linear_acceleration_stddev;
 
-  // From the datasheet, the gyroscope noise density is 0.0035 degree/second sqrt(Hz),
-  // and the bandwidth is 256 Hz.  Using the formula above:
+  // From the datasheet at https://www.vectornav.com/products/vn-100/specifications,
+  // we see that for the VN100 gyroscope:
   //
-  // RMS = 0.0035 degree/second sqrt(Hz) * sqrt(256)
-  // RMS = 0.056 degree/second
+  // - Noise density Nₒ = 0.0035°/(s √Hz) and its bandwidth BWₒ = 256 Hz, and thus
   //
-  // And converting to radians/sec:
+  //   nₒ = Nₒ * √BWₒ
   //
-  // RMS = 0.056 degree/second * pi/180
-  // RMS = 0.000977384 rad/second
-  double angular_velocity_stddev = declare_parameter("angular_velocity_stddev", 0.000977384);
-  angular_velocity_covariance_ = angular_velocity_stddev * angular_velocity_stddev;
+  // - Resolution Rₒ < 0.02°/s, and thus
+  //
+  //   σ(Rₒ) = max(Rₒ) / √12
+  //
+  // - Linearity Lₒ < 0.1% * 2000°/s, and thus
+  //
+  //   σ(Lₒ) = 2 * max(Lₒ) / √12
+  //
+  // - Aligment error |Tₒ| < 0.05° and |Mₒ| < 2000°/s, and thus
+  //
+  //   σ(|Tₒ|) = √2 * sin(max|Tₒ|) * |Mₒ|
+  //
+  // Therefore:
+  //
+  // σ(Mₒ) = √(nₒ² + σ²(Rₒ) + σ²(Lₒ) + σ²(|Tₒ|))
+  // σ(Mₒ) = 2.7255915900720447°/s = 0.04757054731142477 rad/s
+  //
+  double angular_velocity_stddev = declare_parameter("angular_velocity_stddev", 0.04757054731142477);
+  angular_velocity_variance_ = angular_velocity_stddev * angular_velocity_stddev;
 
-  // From the datasheet, the magnetic field noise density is 140 uG/sqrt(Hz)
-  // and the bandwidth is 200 Hz.  Using the formula above:
+  // From the datasheet at https://www.vectornav.com/products/vn-100/specifications,
+  // we see that for the VN100 magnetometer:
   //
-  // RMS = 140 uG/sqrt(Hz) * sqrt(200)
-  // RMS = 1979.898987322 uG
+  // - Noise density Nₘ = 140 µGauss/√Hz and its bandwidth BWₘ = 200 Hz, and thus
   //
-  // Converting to G:
+  //   nₘ = Nₘ * √BWₘ
   //
-  // RMS = 1979.898987322 uG * 1mG/1000.0uG * 1G/1000.0mG
-  // RMS = 0.001979899 G
+  // - Resolution Rₘ < 1.5 mGauss, and thus
   //
-  // Converting to Tesla:
+  //   σ(Rₘ) = max(Rₘ) / √12
   //
-  // RMS = 0.001979899 G * 1T/10000.0G
-  // RMS = 0.000000198 T
-  double magnetic_field_stddev = declare_parameter("magnetic_field_stddev", 0.000000198);
-  magnetic_field_covariance_ = magnetic_field_stddev * magnetic_field_stddev;
+  // - Linearity Lₘ < 0.1% * 2.5 Gauss, and thus
+  //
+  //   σ(Lₘ) = 2 * max(Lₘ) / √12
+  //
+  // - Aligment error |Tₘ| < 0.05° and |Mₘ| < 2.5 Gauss, and thus
+  //
+  //   σ(|Tₘ|) = √2 * sin(max|Tₘ|) * |Mₘ|
+  //
+  // Therefore:
+  //
+  // σ(Mₘ) = √(nₘ² + σ²(Rₘ) + σ²(Lₘ) + σ²(|Tₘ|))
+  // σ(Mₘ) = 0.0039636 Gauss = 0.39636 uT
+  //
+  double magnetic_field_stddev = declare_parameter("magnetic_field_stddev", 0.39636e-6);
+  magnetic_field_variance_ = magnetic_field_stddev * magnetic_field_stddev;
 
   enable_mag_ = declare_parameter("enable_mag", true);
   enable_pres_ = declare_parameter("enable_pres", true);
@@ -200,6 +257,13 @@ void ImuVn100::LoadParameters() {
   vpe_accel_adaptive_filtering_.c1 = declare_parameter("vpe.accel_tuning.adaptive_filtering.y", 4.0);
   vpe_accel_adaptive_filtering_.c2 = declare_parameter("vpe.accel_tuning.adaptive_filtering.z", 4.0);
 
+  hsi_mode_ = declare_parameter("hsi.mode", 1);
+  hsi_output_ = declare_parameter("hsi.output", 3);
+  hsi_converge_rate_ = declare_parameter("hsi.converge_rate", 5);
+
+  ref_use_models_ = declare_parameter("ref.use_models", true);
+  ref_recalc_threshold_m_ = declare_parameter("ref.recalc_threshold_m", 10);
+
   int time_resync_ms = this->declare_parameter("time_resynchronization_interval_ms", 5000);
   time_resync_interval_ns_ = static_cast<int64_t>(time_resync_ms) * 1000 * 1000;
 
@@ -234,6 +298,30 @@ void ImuVn100::CreatePublishers() {
   if (enable_rpy_) {
     pd_rpy_ = this->create_publisher<geometry_msgs::msg::Vector3Stamped>("imu/rpy", 10);
   }
+}
+
+void ImuVn100::CreateSubscribers() {
+  if (ref_use_models_) {
+    sub_gps_fix_ = this->create_subscription<sensor_msgs::msg::NavSatFix>(
+        "gps/fix", 10, std::bind(&ImuVn100::HandleGPSFix, this, std::placeholders::_1));
+  }
+}
+
+void ImuVn100::HandleGPSFix(std::unique_ptr<sensor_msgs::msg::NavSatFix> msg) {
+  VnVector3 fix;
+  fix.c0 = msg->latitude;
+  fix.c1 = msg->longitude;
+  fix.c2 = msg->altitude;
+
+  constexpr double kSecondsPerYear = 3600.0 * 24.0 * 365.2425;
+  float fix_date = static_cast<float>(
+      rclcpp::Time(msg->header.stamp).seconds() / kSecondsPerYear);
+
+  constexpr uint8_t kUseMagneticModel = 1;
+  constexpr uint8_t kUseGravityModel = 1;
+  VnEnsure(vn100_setReferenceVectorConfiguration(
+      &imu_, kUseMagneticModel, kUseGravityModel,
+      ref_recalc_threshold_m_, fix_date, fix, true));
 }
 
 void ImuVn100::Initialize() {
@@ -377,6 +465,30 @@ void ImuVn100::Initialize() {
         true));
   }
 
+  uint8_t hsi_mode;
+  uint8_t hsi_output;
+  uint8_t hsi_converge_rate;
+  VnEnsure(vn100_getMagnetometerCalibrationControl(&imu_, &hsi_mode, &hsi_output,
+                                                   &hsi_converge_rate));
+  RCLCPP_INFO(get_logger(), "Default HSI mode: %hhu", hsi_mode);
+  RCLCPP_INFO(get_logger(), "Default HSI output: %hhu", hsi_output);
+  RCLCPP_INFO(get_logger(), "Default HSI converge rate: %hhu", hsi_converge_rate);
+  if (hsi_mode != hsi_mode_ ||
+      hsi_output != hsi_output_ ||
+      hsi_converge_rate != hsi_converge_rate_) {
+    RCLCPP_INFO(get_logger(), "Setting HSI mode: %hhu", hsi_mode);
+    RCLCPP_INFO(get_logger(), "Setting HSI output: %hhu", hsi_output);
+    RCLCPP_INFO(get_logger(), "Setting HSI converge rate: %hhu", hsi_converge_rate);
+    VnEnsure(vn100_setMagnetometerCalibrationControl(
+      &imu_,
+      hsi_mode,
+      hsi_output,
+      hsi_converge_rate,
+      true));
+  }
+
+  CreateSubscribers();
+
   CreatePublishers();
 
   auto hardware_id = std::string("vn100-") + std::string(model_number_buffer) +
@@ -400,8 +512,8 @@ void ImuVn100::Stream(bool async) {
       }
       uint16_t grp3 = BG3_NONE;
       std::list<std::string> sgrp3;
-      uint16_t grp5 = BG5_NONE;
-      std::list<std::string> sgrp5;
+      uint16_t grp5 = BG5_YPR_U;
+      std::list<std::string> sgrp5 = {"BG5_YPR_U"};
       if (imu_compensated_) {
         grp1 |=  BG1_ACCEL | BG1_ANGULAR_RATE;
         sgrp1.emplace_back("BG1_ACCEL");
@@ -603,15 +715,29 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
         RosVector3FromVnVector3(imu_msg->linear_acceleration,
                                 data.angularRateUncompensated);
       }
-      RosQuaternionFromVnQuaternion(imu_msg->orientation, data.quaternion);
 
-      imu_msg->angular_velocity_covariance[0] = angular_velocity_covariance_;
-      imu_msg->angular_velocity_covariance[4] = angular_velocity_covariance_;
-      imu_msg->angular_velocity_covariance[8] = angular_velocity_covariance_;
+      if (axes_convention_ == AxesConvention::ENU) {
+        // The device reports orientation in the NED frame, but the user
+        // requested the ENU frame.
+        const VnQuaternion enu_to_ned_quat{std::sqrt(0.5), std::sqrt(0.5), 0., 0.};
+        const VnQuaternion vn_quat_enu = VnQuaternionMultiply(enu_to_ned_quat, data.quaternion);
+        RosQuaternionFromVnQuaternion(imu_msg->orientation, vn_quat_enu);
+      } else {
+        RosQuaternionFromVnQuaternion(imu_msg->orientation, data.quaternion);
+      }
 
-      imu_msg->linear_acceleration_covariance[0] = linear_acceleration_covariance_;
-      imu_msg->linear_acceleration_covariance[4] = linear_acceleration_covariance_;
-      imu_msg->linear_acceleration_covariance[8] = linear_acceleration_covariance_;
+      // Pitch and roll variances are swapped when going from NED to ENU.
+      imu_msg->orientation_covariance[0] = data.yprU.c1;
+      imu_msg->orientation_covariance[4] = data.yprU.c2;
+      imu_msg->orientation_covariance[8] = data.yprU.c0;
+
+      imu_msg->angular_velocity_covariance[0] = angular_velocity_variance_;
+      imu_msg->angular_velocity_covariance[4] = angular_velocity_variance_;
+      imu_msg->angular_velocity_covariance[8] = angular_velocity_variance_;
+
+      imu_msg->linear_acceleration_covariance[0] = linear_acceleration_variance_;
+      imu_msg->linear_acceleration_covariance[4] = linear_acceleration_variance_;
+      imu_msg->linear_acceleration_covariance[8] = linear_acceleration_variance_;
 
       pd_imu_->publish(std::move(imu_msg));
     }
@@ -631,13 +757,13 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
       RosVector3FromVnVector3(imu_raw_msg->linear_acceleration,
                               data.angularRateUncompensated);
     }
-    imu_raw_msg->angular_velocity_covariance[0] = angular_velocity_covariance_;
-    imu_raw_msg->angular_velocity_covariance[4] = angular_velocity_covariance_;
-    imu_raw_msg->angular_velocity_covariance[8] = angular_velocity_covariance_;
+    imu_raw_msg->angular_velocity_covariance[0] = angular_velocity_variance_;
+    imu_raw_msg->angular_velocity_covariance[4] = angular_velocity_variance_;
+    imu_raw_msg->angular_velocity_covariance[8] = angular_velocity_variance_;
 
-    imu_raw_msg->linear_acceleration_covariance[0] = linear_acceleration_covariance_;
-    imu_raw_msg->linear_acceleration_covariance[4] = linear_acceleration_covariance_;
-    imu_raw_msg->linear_acceleration_covariance[8] = linear_acceleration_covariance_;
+    imu_raw_msg->linear_acceleration_covariance[0] = linear_acceleration_variance_;
+    imu_raw_msg->linear_acceleration_covariance[4] = linear_acceleration_variance_;
+    imu_raw_msg->linear_acceleration_covariance[8] = linear_acceleration_variance_;
 
     pd_imu_raw_->publish(std::move(imu_raw_msg));
 
@@ -666,9 +792,9 @@ void ImuVn100::PublishData(const VnDeviceCompositeData& data) {
       mag_msg->magnetic_field.y /= 10000.0;
       mag_msg->magnetic_field.z /= 10000.0;
 
-      mag_msg->magnetic_field_covariance[0] = magnetic_field_covariance_;
-      mag_msg->magnetic_field_covariance[4] = magnetic_field_covariance_;
-      mag_msg->magnetic_field_covariance[8] = magnetic_field_covariance_;
+      mag_msg->magnetic_field_covariance[0] = magnetic_field_variance_;
+      mag_msg->magnetic_field_covariance[4] = magnetic_field_variance_;
+      mag_msg->magnetic_field_covariance[8] = magnetic_field_variance_;
 
       pd_mag_->publish(std::move(mag_msg));
     }
@@ -739,10 +865,19 @@ void RosVector3FromVnVector3(geometry_msgs::msg::Vector3& ros_vec3,
 
 void RosQuaternionFromVnQuaternion(geometry_msgs::msg::Quaternion& ros_quat,
                                    const VnQuaternion& vn_quat) {
+  ros_quat.w = vn_quat.w;
   ros_quat.x = vn_quat.x;
   ros_quat.y = vn_quat.y;
   ros_quat.z = vn_quat.z;
-  ros_quat.w = vn_quat.w;
+}
+
+VnQuaternion VnQuaternionMultiply(VnQuaternion a, VnQuaternion b) {
+  VnQuaternion c;
+  c.w = a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z;
+  c.x = a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y;
+  c.y = a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x;
+  c.z = a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w;
+  return c;
 }
 
 }  //  namespace imu_vn_100

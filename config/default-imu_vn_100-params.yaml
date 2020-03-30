@@ -48,3 +48,10 @@ imu_vn_100:
                     x: 4.0
                     y: 4.0
                     z: 4.0
+        hsi:
+          mode: 1
+          output: 3
+          converge_rate: 5
+        ref:
+          use_models: false
+          recalc_threshold_m: 10

@@ -21,9 +21,10 @@
 
 #include <geometry_msgs/msg/vector3_stamped.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/fluid_pressure.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/magnetic_field.hpp>
-#include <sensor_msgs/msg/fluid_pressure.hpp>
+#include <sensor_msgs/msg/nav_sat_fix.hpp>
 #include <sensor_msgs/msg/temperature.hpp>
 
 #include "vn100.h"
@@ -81,10 +82,15 @@ class ImuVn100 final : public rclcpp::Node {
   int imu_rate_{0};
   double imu_rate_double_{0.0};
   std::string frame_id_;
+  enum class AxesConvention {
+    NED,
+    ENU,
+  };
+  AxesConvention axes_convention_;
 
-  double linear_acceleration_covariance_{0.0};
-  double angular_velocity_covariance_{0.0};
-  double magnetic_field_covariance_{0.0};
+  double linear_acceleration_variance_{0.0};
+  double angular_velocity_variance_{0.0};
+  double magnetic_field_variance_{0.0};
 
   bool enable_mag_{false};
   bool enable_pres_{false};
@@ -107,6 +113,13 @@ class ImuVn100 final : public rclcpp::Node {
   VnVector3 vpe_accel_adaptive_tuning_{};
   VnVector3 vpe_accel_adaptive_filtering_{};
 
+  int hsi_mode_;
+  int hsi_output_;
+  int hsi_converge_rate_;
+
+  bool ref_use_models_;
+  uint32_t ref_recalc_threshold_m_;
+
   SyncInfo sync_info_;
 
   rclcpp::Time last_cb_time_;
@@ -125,9 +138,13 @@ class ImuVn100 final : public rclcpp::Node {
   rclcpp::Publisher<sensor_msgs::msg::FluidPressure>::SharedPtr pd_pres_;
   rclcpp::Publisher<sensor_msgs::msg::Temperature>::SharedPtr pd_temp_;
   rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr pd_rpy_;
+  rclcpp::Subscription<sensor_msgs::msg::NavSatFix>::SharedPtr sub_gps_fix_;
+
+  void HandleGPSFix(std::unique_ptr<sensor_msgs::msg::NavSatFix> msg);
 
   void FixImuRate();
   void LoadParameters();
+  void CreateSubscribers();
   void CreatePublishers();
 
   // Just don't like type that is ALL CAP
