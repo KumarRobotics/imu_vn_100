@@ -13,7 +13,7 @@
     <arg name="sync_pulse_width_us" default="1000"/>
     
     <!-- Time to use settings -->
-    <arg name="use_imu_clock" default="true"/>
+    <arg name="use_imu_clock" default="false"/>
 
     <!-- Binary settings -->
     <arg name="binary_output" default="true"/>
