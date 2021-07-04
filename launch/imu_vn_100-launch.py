@@ -11,7 +11,7 @@ def generate_launch_description():
         'config')
     params = os.path.join(config_directory, 'default-imu_vn_100-params.yaml')
     imu_vn_100_node = launch_ros.actions.Node(package='imu_vn_100',
-                                              node_executable='imu_vn_100_node',
+                                              executable='imu_vn_100_node',
                                               output='both',
                                               parameters=[params])
 
