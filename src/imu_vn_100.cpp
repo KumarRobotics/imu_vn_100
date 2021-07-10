@@ -310,7 +310,7 @@ void VnEnsure(const VnErrorCode& error_code) {
     case VNERR_NOT_IMPLEMENTED:
       throw std::runtime_error("VN: Not implemented");
     case VNERR_TIMEOUT:
-      ROS_WARN("Opertation time out");
+      ROS_WARN("VN: Operation time out");
       break;
     case VNERR_SENSOR_INVALID_PARAMETER:
       ROS_WARN("VN: Sensor invalid paramter");
