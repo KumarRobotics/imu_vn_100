@@ -48,21 +48,25 @@ The baud rate to use to initially connect to the serial port.  Out of the box, t
 
 The baud rate of the serial port. The available baud rates can be checked in the user manual. It is suggested that the baud rate is kept at `921600` to ensure high frequency transmission. The device will send `permission denied` error code if the baud rate cannot support the desired data package at the desired frequency.
 
-`linear_acceleration_stddev` (`float`, `default: 0.002257432`)
+`axes_convention` (`string`, `default: NED`)
+
+The convention to use when publishing the axes.  The default is NED (which is what the device reports), but ENU is also supported.
+
+`linear_acceleration_stddev` (`float`, `default: 0.0502828038`)
 
 The standard deviation for linear acceleration to be reported when publishing data.
 
-`angular_velocity_stddev` (`float`, `default: 0.000977384`)
+`angular_velocity_stddev` (`float`, `default: 0.04757054731142477`)
 
 The standard deviation for angular velocity to be reported when publishing data.
 
-`magnetic_field_stddev` (`float`, `default: 0.000977384`)
+`magnetic_field_stddev` (`float`, `default: 0.39636e-6`)
 
 The standard deviation for the magnetic field to be reported when publishing data.
 
 ```
-enable_magn  (bool, default: true)
-enable_press (bool, default: true)
+enable_mag  (bool, default: true)
+enable_pres (bool, default: true)
 enable_temp  (bool, default: true)
 enable_rpy  (bool, default: false)
 ```
@@ -189,6 +193,16 @@ The amount of adaptive filtering to apply to the accelerometer Y-axis.  0.0 disa
 `vpe.accel_tuning.adaptive_filtering.z` (`float`, `default: 4.0`)
 
 The amount of adaptive filtering to apply to the accelerometer Z-axis.  0.0 disables.  Must be between 0.0 and 10.0 (higher levels do more filtering, at the expense of adding delay to the data).
+
+`hsi.mode` (`int`, `default: 1`)
+
+`hsi.output` (`int`, `default: 3`)
+
+`hsi.converge_rate` (`int`, `default: 5`)
+
+`ref.use_models` (`boolean`, `default: true`)
+
+`ref.recalc_threshold_m` (`int`, `default: 10`)
 
 `time_resynchronization_interval_ms` (`int`, `default: 5000`)
 
